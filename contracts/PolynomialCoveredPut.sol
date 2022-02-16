@@ -11,7 +11,6 @@ import { IPolynomialCoveredPut } from "./interfaces/IPolynomialCoveredPut.sol";
 import { IOptionMarket } from "./interfaces/lyra/IOptionMarket.sol";
 import { IOptionMarketPricer } from "./interfaces/lyra/IOptionMarketPricer.sol";
 import { IOptionMarketViewer } from "./interfaces/lyra/IOptionMarketViewer.sol";
-import { ISynthetix } from "./interfaces/lyra/ISynthetix.sol";
 
 contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
     /// -----------------------------------------------------------------------
@@ -34,9 +33,6 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
 
     /// @notice Collateral Asset
     ERC20 public immutable COLLATERAL;
-
-    /// @notice Synthetix
-    ISynthetix public immutable SYNTHETIX;
 
     /// @notice Lyra Option Market
     IOptionMarket public immutable LYRA_MARKET;
@@ -120,14 +116,12 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
     constructor(
         string memory _name,
         ERC20 _collateral,
-        ISynthetix _synthetix,
         IOptionMarket _lyraMarket,
         IOptionMarketPricer _marketPricer,
         IOptionMarketViewer _marketViewer
     ) Auth(msg.sender, Authority(address(0x0))) {
         name = _name;
         COLLATERAL = _collateral;
-        SYNTHETIX = _synthetix;
         LYRA_MARKET = _lyraMarket;
         MARKET_PRICER = _marketPricer;
         MARKET_VIEWER = _marketViewer;

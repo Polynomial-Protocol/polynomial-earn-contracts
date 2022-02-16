@@ -19,6 +19,11 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   }
 });
 
+task("blockNumber", "Get current block number", async (taskArgs, hre) => {
+  const blockNumber = await hre.ethers.provider.getBlockNumber();
+  console.log(blockNumber);
+})
+
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -30,6 +35,14 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    hardhat: {
+      forking: {
+        url: process.env.OPTIMISM_URL || "",
+        blockNumber: 3384902, // 
+      },
+        
+      // url: process.env.OPTIMISM_URL || "",
+    }
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
