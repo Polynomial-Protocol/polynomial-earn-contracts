@@ -1,4 +1,4 @@
-import { deployVault } from "../test/utils/deployVault"
+import { deployVault } from "../../test/utils/deployVault"
 
 async function main() {
     const vault = await deployVault("SETH", "coveredCall");
