@@ -37,9 +37,6 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
     /// @notice Lyra Option Market
     IOptionMarket public immutable LYRA_MARKET;
 
-    /// @notice Lyra Option Market Pricer
-    IOptionMarketPricer public immutable MARKET_PRICER;
-
     /// @notice Lyra Option Market Viewer
     IOptionMarketViewer public immutable MARKET_VIEWER;
 
@@ -117,13 +114,11 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         string memory _name,
         ERC20 _collateral,
         IOptionMarket _lyraMarket,
-        IOptionMarketPricer _marketPricer,
         IOptionMarketViewer _marketViewer
     ) Auth(msg.sender, Authority(address(0x0))) {
         name = _name;
         COLLATERAL = _collateral;
         LYRA_MARKET = _lyraMarket;
-        MARKET_PRICER = _marketPricer;
         MARKET_VIEWER = _marketViewer;
 
         performanceIndices[0] = 1e18;

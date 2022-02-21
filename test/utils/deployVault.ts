@@ -18,7 +18,6 @@ async function deployCoveredCall(asset: String): Promise<PolynomialCoveredCall> 
         constants.TOKEN_ADDR[networkName][asset as string],
         constants.SYNTHETIX_ADDR[networkName],
         constants.LYRA_MARKET[networkName][asset as string],
-        constants.MARKET_PRICER[networkName][asset as string],
         constants.MARKET_VIEWER[networkName][asset as string],
         constants.SYNTH_KEYS[asset as string],
         constants.SYNTH_KEYS["SUSD"]
@@ -36,7 +35,6 @@ async function deployCoveredPut(asset: String): Promise<PolynomialCoveredPut> {
         "FX " + asset + "Covered Put",
         constants.TOKEN_ADDR[networkName]["SUSD"],
         constants.LYRA_MARKET[networkName][asset as string],
-        constants.MARKET_PRICER[networkName][asset as string],
         constants.MARKET_VIEWER[networkName][asset as string]
     );
 

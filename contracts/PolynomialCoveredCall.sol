@@ -41,9 +41,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
     /// @notice Lyra Option Market
     IOptionMarket public immutable LYRA_MARKET;
 
-    /// @notice Lyra Option Market Pricer
-    IOptionMarketPricer public immutable MARKET_PRICER;
-
     /// @notice Lyra Option Market Viewer
     IOptionMarketViewer public immutable MARKET_VIEWER;
 
@@ -128,7 +125,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
         ERC20 _underlying,
         ISynthetix _synthetix,
         IOptionMarket _lyraMarket,
-        IOptionMarketPricer _marketPricer,
         IOptionMarketViewer _marketViewer,
         bytes32 _underlyingKey,
         bytes32 _premiumKey
@@ -137,7 +133,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
         UNDERLYING = _underlying;
         SYNTHETIX = _synthetix;
         LYRA_MARKET = _lyraMarket;
-        MARKET_PRICER = _marketPricer;
         MARKET_VIEWER = _marketViewer;
         SYNTH_KEY_UNDERLYING = _underlyingKey;
         SYNTH_KEY_PREMIUM = _premiumKey;
