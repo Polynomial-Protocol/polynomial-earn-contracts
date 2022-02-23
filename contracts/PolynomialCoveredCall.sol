@@ -112,6 +112,12 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
     mapping (uint256 => uint256) public performanceIndices;
 
     /// -----------------------------------------------------------------------
+    /// Events
+    /// -----------------------------------------------------------------------
+
+    event SellOptions(uint256 indexed round, uint256 optionsSold, uint256 totalCost);
+
+    /// -----------------------------------------------------------------------
     /// Modifiers
     /// -----------------------------------------------------------------------
 
@@ -168,12 +174,11 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
         UserInfo storage userInfo = userInfos[msg.sender];
         if (userInfo.depositRound > 0 && userInfo.depositRound <= currentRound) {
             userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
-            userInfo.depositRound = currentRound + 1;
             userInfo.pendingDeposit = _amt;
         } else {
-            userInfo.depositRound = currentRound + 1;
             userInfo.pendingDeposit += _amt;
         }
+        userInfo.depositRound = currentRound + 1;
     }
 
     function requestWithdraw(uint256 _shares) external override {
@@ -186,7 +191,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
             UNDERLYING.safeTransfer(msg.sender, _shares);
             userInfo.totalShares -= _shares;
         } else {
-            userInfo.withdrawRound = currentRound + 1;
+            userInfo.withdrawRound = currentRound;
             userInfo.withdrawnShares += _shares;
             pendingWithdraws += _shares;
         }
@@ -295,21 +300,23 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
     }
 
     function sellOptions(uint256 _amt) external onlyKeeper {
-        _amt = _amt == type(uint256).max ? totalFunds - usedFunds : _amt;
-        require(_amt + usedFunds <= totalFunds, "INSUFFICIENT_FUNDS");
+        _amt = _amt > (totalFunds - usedFunds) ? totalFunds - usedFunds : _amt;
 
         IOptionMarket.TradeType tradeType = IOptionMarket.TradeType.SHORT_CALL;
-        (,,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(currentListingId);
-        (,, uint256 iv,) = LYRA_MARKET.optionBoards(boardId);
-        IOptionMarketViewer.TradePremiumView memory tradePremium = MARKET_VIEWER.getPremiumForOpen(
-            currentListingId, tradeType, _amt
-        );
-        require(iv - tradePremium.newIv < ivLimit, "IV_LIMIT_HIT");
+
+        IOptionMarketViewer.TradePremiumView memory zeroTradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, 0);
+        IOptionMarketViewer.TradePremiumView memory tradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, _amt);
+
+        require(zeroTradePremium.newIv - tradePremium.newIv < ivLimit, "IV_LIMIT_HIT");
 
         UNDERLYING.safeApprove(address(LYRA_MARKET), _amt);
         uint256 totalCost = LYRA_MARKET.openPosition(currentListingId, tradeType, _amt);
         
         uint256 totalCostInUnderlying = SYNTHETIX.exchange(SYNTH_KEY_PREMIUM, totalCost, SYNTH_KEY_UNDERLYING);
+
         premiumCollected += totalCostInUnderlying;
+        usedFunds += _amt;
+
+        emit SellOptions(currentRound, _amt, totalCost);
     }
 }

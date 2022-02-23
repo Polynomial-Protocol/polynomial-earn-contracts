@@ -48,3 +48,5 @@ export const SYNTH_KEYS: KV = {
     "SBTC": ethers.utils.formatBytes32String("sBTC"),
     "SUSD": ethers.utils.formatBytes32String("sUSD")
 }
+
+export const ROUND_TIMESTAMPS = [1643961600, 1644566400, 1645171200, 1645776000]

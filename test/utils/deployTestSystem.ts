@@ -1,5 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
+import { toBN } from '../../scripts/utils/general/toBN';
 
 export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: SignerWithAddress) {
     let tx;
@@ -36,16 +37,16 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
         optionMarketPricer.address,
         ethOptionMarket.address,
         {
-            optionPriceFeeCoefficient: ethers.BigNumber.from(10).pow(16),
-            spotPriceFeeCoefficient: ethers.BigNumber.from(10).pow(14),
-            vegaFeeCoefficient: ethers.BigNumber.from(10).pow(18).mul(500),
-            vegaNormFactor: ethers.BigNumber.from(10).pow(17).mul(2),
-            standardSize: ethers.BigNumber.from(10).pow(18).mul(50),
-            skewAdjustmentFactor: ethers.BigNumber.from(10).pow(18),
-            rateAndCarry: ethers.BigNumber.from(10).pow(15).mul(6),
-            minDelta: ethers.BigNumber.from(10).pow(16),
-            volatilityCutoff: ethers.BigNumber.from(10).pow(15).mul(55),
-            spotPrice: ethers.BigNumber.from(10).pow(18).mul(2600)
+            optionPriceFeeCoefficient: toBN('0.01'),
+            spotPriceFeeCoefficient: toBN('0.0001'),
+            vegaFeeCoefficient: toBN('500'),
+            vegaNormFactor: toBN('0.2'),
+            standardSize: toBN('50'),
+            skewAdjustmentFactor: toBN('1'),
+            rateAndCarry: toBN('0.006'),
+            minDelta: toBN('0.01'),
+            volatilityCutoff: toBN('0.00055'),
+            spotPrice: toBN('2600')
         }
     );
 
@@ -57,18 +58,24 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
         optionMarketPricer.address,
         btcOptionMarket.address,
         {
-            optionPriceFeeCoefficient: ethers.BigNumber.from(10).pow(16),
-            spotPriceFeeCoefficient: ethers.BigNumber.from(10).pow(14),
-            vegaFeeCoefficient: ethers.BigNumber.from(10).pow(18).mul(500),
-            vegaNormFactor: ethers.BigNumber.from(10).pow(17).mul(2),
-            standardSize: ethers.BigNumber.from(10).pow(17).mul(4),
-            skewAdjustmentFactor: ethers.BigNumber.from(10).pow(17),
-            rateAndCarry: ethers.BigNumber.from(10).pow(15).mul(6),
-            minDelta: ethers.BigNumber.from(10).pow(16),
-            volatilityCutoff: ethers.BigNumber.from(10).pow(15).mul(55),
-            spotPrice: ethers.BigNumber.from(10).pow(18).mul(37000)
+            optionPriceFeeCoefficient: toBN('0.01'),
+            spotPriceFeeCoefficient: toBN('0.0001'),
+            vegaFeeCoefficient: toBN('500'),
+            vegaNormFactor: toBN('0.2'),
+            standardSize: toBN('0.4'),
+            skewAdjustmentFactor: toBN('0.1'),
+            rateAndCarry: toBN('0.006'),
+            minDelta: toBN('0.01'),
+            volatilityCutoff: toBN('0.00055'),
+            spotPrice: toBN('37000')
         }
     )
+
+    tx = await ethOptionMarket.setOptionViewer(ethOptionMarketViewer.address);
+    tx.wait()
+
+    tx = await btcOptionMarket.setOptionViewer(btcOptionMarketViewer.address);
+    tx.wait();
 
     const CoveredCall = await ethers.getContractFactory("PolynomialCoveredCall");
     const CoveredPut = await ethers.getContractFactory("PolynomialCoveredPut");
@@ -123,14 +130,14 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx = await btcCoveredPut.setUserDepositLimit(MAX_UINT);
     tx.wait();
 
-    tx = await ethCoveredCall.setIvLimit(WAD);
+    tx = await ethCoveredCall.setIvLimit(toBN('0.01'));
     tx.wait();
-    tx = await ethCoveredPut.setIvLimit(WAD);
+    tx = await ethCoveredPut.setIvLimit(toBN('0.01'));
     tx.wait();
 
-    tx = await btcCoveredCall.setIvLimit(WAD);
+    tx = await btcCoveredCall.setIvLimit(toBN('0.01'));
     tx.wait();
-    tx = await btcCoveredPut.setIvLimit(WAD);
+    tx = await btcCoveredPut.setIvLimit(toBN('0.01'));
     tx.wait();
 
     tx = await ethCoveredCall.setFees(performanceFee, managementFee);
@@ -161,6 +168,18 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx = await btcCoveredCall.setKeeper(feeRecepient.address);
     tx.wait();
     tx = await btcCoveredPut.setKeeper(feeRecepient.address);
+    tx.wait();
+
+    tx = await sUSD.setPermitter(ethOptionMarket.address, true);
+    tx.wait();
+    tx = await sUSD.setPermitter(btcOptionMarket.address, true);
+    tx.wait();
+
+    tx = await sUSD.setPermitter(synthetix.address, true);
+    tx.wait();
+    tx = await sETH.setPermitter(synthetix.address, true);
+    tx.wait();
+    tx = await sBTC.setPermitter(synthetix.address, true);
     tx.wait();
 
     return {
