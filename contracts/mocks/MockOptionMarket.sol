@@ -10,7 +10,7 @@ import { MockOptionViewer } from "./MockOptionViewer.sol";
 
 contract MockOptionMarket {
     using SafeDecimalMath for uint;
-    
+
     address owner;
     uint256 public boardCount;
     uint256 listingCount;
@@ -23,13 +23,13 @@ contract MockOptionMarket {
     mapping(address => mapping(uint256 => uint256)) shortCollateralCall;
     mapping(address => mapping(uint256 => uint256)) shortCollateralPut;
     mapping(uint256 => uint256) expiryPrice;
-    
+
     constructor(MockSynth _underlying, MockSynth _premium) {
         owner = msg.sender;
         UNDERLYING = _underlying;
         PREMIUM_ASSET = _premium;
     }
-    
+
     function createOptionBoard(
         uint expiry,
         uint baseIV,
@@ -37,21 +37,21 @@ contract MockOptionMarket {
         uint[] memory skews
     ) external returns (uint) {
         require(msg.sender == owner);
-        
+
         boardCount++;
         optionBoards[boardCount].id = boardCount;
         optionBoards[boardCount].expiry = expiry;
         optionBoards[boardCount].iv = baseIV;
-        
+
         for (uint256 i = 0; i < strikes.length; i++) {
             listingCount++;
             optionListings[listingCount] = IOptionMarket.OptionListing(listingCount, strikes[i], skews[i], 0, 0, 0, 0, boardCount);
             optionBoards[boardCount].listingIds.push(listingCount);
         }
-        
+
         return boardCount;
     }
-    
+
     function openPosition(
         uint _listingId,
         IOptionMarket.TradeType tradeType,
@@ -75,12 +75,12 @@ contract MockOptionMarket {
             PREMIUM_ASSET.mint(msg.sender, totalCost);
         }
     }
-    
+
     function settleOptions(uint listingId, IOptionMarket.TradeType tradeType) external {
         IOptionMarket.OptionListing memory listing = optionListings[listingId];
         
         uint256 priceAtExpiry = expiryPrice[listing.boardId];
-        
+
         if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
             uint256 amount = shortCollateralCall[msg.sender][listingId];
             if (listing.strike > priceAtExpiry) {
@@ -95,16 +95,16 @@ contract MockOptionMarket {
             PREMIUM_ASSET.transfer(msg.sender, amount.multiplyDecimal(multiplier));
         }
     }
-    
+
     function setPremium(uint256 listingId, uint256 premium) external {
         require(msg.sender == owner);
-        
+
         premiums[listingId] = premium;
     }
-    
+
     function setExpiryPrice(uint boardId, uint price) external {
         require(msg.sender == owner);
-        
+
         expiryPrice[boardId] = price;
     }
     

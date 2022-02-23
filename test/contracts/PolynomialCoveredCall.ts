@@ -25,8 +25,8 @@ describe("PolynomialCoveredCall", () => {
     let ethOptionMarket: MockOptionMarket;
     let ethOptionMarketViewer: MockOptionViewer;
     let synthetix: MockSynthetix;
-    let totalFunds: BigNumber[];
-    let totalPremiumCollected: BigNumber[];
+    let totalFunds: BigNumber[] = [];
+    let totalPremiumCollected: BigNumber[] = [];
 
     before(async () => {
         [ deployer, user0, user1, user2, user3, user4, keeper, feeRecepient ] = await ethers.getSigners();

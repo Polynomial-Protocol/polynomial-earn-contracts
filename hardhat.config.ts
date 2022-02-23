@@ -35,12 +35,13 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    optimism: {
-      url: process.env.OPTIMISM_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    },
     hardhat: {
+      // forking: {
+      //   url: process.env.OPTIMISM_URL || "",
+      //   blockNumber: 3384902, // 
+      // },
+        
+      // url: process.env.OPTIMISM_URL || "",
       initialDate: "2022-02-02"
     }
   },
