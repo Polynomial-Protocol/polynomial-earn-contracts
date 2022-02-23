@@ -1,81 +1,40 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
-import { deployVault } from "../utils/deployVault";
-import { getERC20 } from "../../scripts/utils/general/getERC20";
-import { TOKEN_ADDR } from "../../constants/constants";
+import { deployTestSystem } from "../utils/deployTestSystem";
+import { distributeSynths } from "../utils/distributeSynths";
 import { BigNumber, Contract, Signer } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { batchApprove } from "../utils/batchApprove";
 
 describe("PolynomialCoveredCall", () => {
     let ethVault : Contract, btcVault : Contract;
-    let networkName : string;
     const WAD = BigNumber.from(10).pow(18);
-    const MAX_UINT = BigNumber.from(2).pow(256).sub(1);
     let deployer : SignerWithAddress,
         user0 : SignerWithAddress,
         user1 : SignerWithAddress,
         user2 : SignerWithAddress,
         user3 : SignerWithAddress,
         user4 : SignerWithAddress,
-        sethWhale : SignerWithAddress;
-    let SETH : Contract;
+        keeper : SignerWithAddress,
+        feeRecepient : SignerWithAddress;
 
     before(async () => {
-        ethVault = await deployVault("SETH", "coveredCall");
-        btcVault = await deployVault("SBTC", "coveredCall");
+        [ deployer, user0, user1, user2, user3, user4, keeper, feeRecepient ] = await ethers.getSigners();
+        const SYSTEM = await deployTestSystem(keeper, feeRecepient);
 
-        const sethWhaleAddr = "0xa5f7a39E55D7878bC5bd754eE5d6BD7a7662355b";
+        ethVault = SYSTEM.ethCoveredCall;
 
-        const networkName = network.name === "hardhat" ? "optimism" : network.name;
-        [deployer, user0, user1, user2, user3, user4] = await ethers.getSigners();
+        await distributeSynths(
+            [user0, user1, user2, user3, user4],
+            [SYSTEM.sETH, SYSTEM.sUSD, SYSTEM.sBTC],
+            [WAD.mul(100), WAD.mul(1000000), BigNumber.from(10).pow(8).mul(10)]
+        );
 
-        await network.provider.request({
-            method: "hardhat_impersonateAccount",
-            params: [sethWhaleAddr],
-        });
-
-        sethWhale = await ethers.getSigner(sethWhaleAddr);
-
-        const seth = await getERC20(TOKEN_ADDR[networkName]["SETH"], sethWhale);
-        SETH = seth;
-
-        const amount = WAD.mul(100);
-        
-        let tx = await seth.transfer(user0.address, amount);
-        await tx.wait();
-
-        tx = await seth.transfer(user1.address, amount);
-        await tx.wait();
-
-        tx = await seth.transfer(user2.address, amount);
-        await tx.wait();
-
-        tx = await seth.transfer(user3.address, amount);
-        await tx.wait();
-
-        tx = await seth.transfer(user4.address, amount);
-        await tx.wait();
-
-        tx = await seth.connect(user0).approve(ethVault.address, MAX_UINT);
-        await tx.wait();
-
-        tx = await seth.connect(user1).approve(ethVault.address, MAX_UINT);
-        await tx.wait();
-
-        tx = await seth.connect(user2).approve(ethVault.address, MAX_UINT);
-        await tx.wait();
-
-        tx = await seth.connect(user3).approve(ethVault.address, MAX_UINT);
-        await tx.wait();
-
-        tx = await seth.connect(user4).approve(ethVault.address, MAX_UINT);
-        await tx.wait();
-
-        tx = await ethVault.setCap(MAX_UINT);
-        await tx.wait();
-
-        tx = await ethVault.setUserDepositLimit(MAX_UINT);
-        await tx.wait();
+        await batchApprove(
+            [user0, user1, user2, user3, user4],
+            SYSTEM.sETH,
+            ethVault
+        );
     })
 
     describe("Round 0", () => {

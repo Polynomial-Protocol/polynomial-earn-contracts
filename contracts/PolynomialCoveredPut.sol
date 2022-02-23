@@ -233,6 +233,10 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         feeReceipient = _feeReceipient;
     }
 
+    function setKeeper(address _keeper) external requiresAuth {
+        keeper = _keeper;
+    }
+
     function startNewRound(uint256 _listingId) external requiresAuth {
         /// Check if listing ID is valid & last round's expiry is over
         (,,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(_listingId);

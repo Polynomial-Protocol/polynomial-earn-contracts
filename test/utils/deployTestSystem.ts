@@ -1,6 +1,12 @@
-import { ethers, network } from 'hardhat';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers } from 'hardhat';
 
-export async function deployTestSystem() {
+export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: SignerWithAddress) {
+    let tx;
+    const MAX_UINT = ethers.BigNumber.from(2).pow(256).sub(1);
+    const WAD = ethers.BigNumber.from(10).pow(18);
+    const managementFee = ethers.BigNumber.from(10).pow(6);
+    const performanceFee = ethers.BigNumber.from(10).pow(7);
     const Synth = await ethers.getContractFactory("MockSynth");
     const sUSD = await Synth.deploy("Synth USD", "sUSD");
     const sETH = await Synth.deploy("Synth Ethereum", "sETH");
@@ -98,6 +104,64 @@ export async function deployTestSystem() {
         btcOptionMarket.address,
         btcOptionMarketViewer.address
     );
+
+    tx = await ethCoveredCall.setCap(MAX_UINT);
+    tx.wait();
+    tx = await ethCoveredCall.setUserDepositLimit(MAX_UINT);
+    tx.wait();
+    tx = await ethCoveredPut.setCap(MAX_UINT);
+    tx.wait();
+    tx = await ethCoveredPut.setUserDepositLimit(MAX_UINT);
+    tx.wait();
+
+    tx = await btcCoveredCall.setCap(MAX_UINT);
+    tx.wait();
+    tx = await btcCoveredCall.setUserDepositLimit(MAX_UINT);
+    tx.wait();
+    tx = await btcCoveredPut.setCap(MAX_UINT);
+    tx.wait();
+    tx = await btcCoveredPut.setUserDepositLimit(MAX_UINT);
+    tx.wait();
+
+    tx = await ethCoveredCall.setIvLimit(WAD);
+    tx.wait();
+    tx = await ethCoveredPut.setIvLimit(WAD);
+    tx.wait();
+
+    tx = await btcCoveredCall.setIvLimit(WAD);
+    tx.wait();
+    tx = await btcCoveredPut.setIvLimit(WAD);
+    tx.wait();
+
+    tx = await ethCoveredCall.setFees(performanceFee, managementFee);
+    tx.wait();
+    tx = await ethCoveredPut.setFees(performanceFee, managementFee);
+    tx.wait();
+
+    tx = await btcCoveredCall.setFees(performanceFee, managementFee);
+    tx.wait();
+    tx = await btcCoveredPut.setFees(performanceFee, managementFee);
+    tx.wait();
+
+    tx = await ethCoveredCall.setKeeper(keeper.address);
+    tx.wait();
+    tx = await ethCoveredPut.setKeeper(keeper.address);
+    tx.wait();
+
+    tx = await btcCoveredCall.setKeeper(keeper.address);
+    tx.wait();
+    tx = await btcCoveredPut.setKeeper(keeper.address);
+    tx.wait();
+
+    tx = await ethCoveredCall.setFeeReceipient(feeRecepient.address);
+    tx.wait();
+    tx = await ethCoveredPut.setKeeper(feeRecepient.address);
+    tx.wait();
+
+    tx = await btcCoveredCall.setKeeper(feeRecepient.address);
+    tx.wait();
+    tx = await btcCoveredPut.setKeeper(feeRecepient.address);
+    tx.wait();
 
     return {
         sUSD,
