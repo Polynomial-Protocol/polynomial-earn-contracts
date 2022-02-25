@@ -62,6 +62,9 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
     /// @notice Current Listing ID's Expiry
     uint256 public currentExpiry;
 
+    /// @notice Current Listing Strike Price
+    uint256 public currentStrike;
+
     /// @notice Total premium collected in the round
     uint256 public premiumCollected;
 
@@ -102,6 +105,14 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
     mapping (uint256 => uint256) public performanceIndices;
 
     /// -----------------------------------------------------------------------
+    /// Events
+    /// -----------------------------------------------------------------------
+
+    event SellOptions(uint256 indexed round, uint256 optionsSold, uint256 totalCost);
+
+    event CompleteWithdraw(address indexed user, uint256 indexed withdrawnRound, uint256 shares, uint256 funds);
+
+    /// -----------------------------------------------------------------------
     /// Modifiers
     /// -----------------------------------------------------------------------
 
@@ -137,6 +148,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
 
         UserInfo storage userInfo = userInfos[msg.sender];
         userInfo.totalShares += _amt;
+        totalShares += _amt;
     }
 
     function deposit(uint256 _amt) external override {
@@ -150,50 +162,55 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         require(totalFunds + pendingDeposits < vaultCapacity, "CAPACITY_EXCEEDED");
 
         UserInfo storage userInfo = userInfos[msg.sender];
-        if (userInfo.depositRound > 0 && userInfo.depositRound <= currentRound) {
+        if (userInfo.depositRound > 0 && userInfo.depositRound < currentRound) {
             userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
             userInfo.pendingDeposit = _amt;
         } else {
             userInfo.pendingDeposit += _amt;
         }
-        userInfo.depositRound = currentRound + 1;
+        userInfo.depositRound = currentRound;
     }
 
     function requestWithdraw(uint256 _shares) external override {
         UserInfo storage userInfo = userInfos[msg.sender];
 
         require(userInfo.totalShares >= _shares, "INSUFFICIENT_SHARES");
-        require(userInfo.withdrawnShares == 0, "INCOMPLETE_PENDING_WITHDRAW");
 
         if (currentRound == 0) {
             COLLATERAL.safeTransfer(msg.sender, _shares);
-            userInfo.totalShares -= _shares;
+            totalShares -= _shares;
         } else {
-            userInfo.withdrawRound = currentRound + 1;
+            if (userInfo.withdrawRound < currentRound) {
+                require(userInfo.withdrawnShares == 0, "INCOMPLETE_PENDING_WITHDRAW");
+            }
+            userInfo.withdrawRound = currentRound;
             userInfo.withdrawnShares += _shares;
             pendingWithdraws += _shares;
         }
+        userInfo.totalShares -= _shares;
     }
 
     function cancelWithdraw(uint256 _shares) external override {
         UserInfo storage userInfo = userInfos[msg.sender];
 
-        require(userInfo.withdrawnShares > _shares, "NO_WITHDRAW_REQUESTS");
+        require(userInfo.withdrawnShares >= _shares, "NO_WITHDRAW_REQUESTS");
+        require(userInfo.withdrawRound == currentRound, "CANNOT_CANCEL_AFTER_ROUND");
 
         userInfo.withdrawnShares -= _shares;
         pendingWithdraws -= _shares;
+        userInfo.totalShares += _shares;
     }
 
     function completeWithdraw() external override {
         UserInfo storage userInfo = userInfos[msg.sender];
 
-        require(currentRound > userInfo.withdrawRound + 1, "ROUND_NOT_OVER");
+        require(currentRound > userInfo.withdrawRound, "ROUND_NOT_OVER");
 
         uint256 pendingWithdrawAmount = userInfo.withdrawnShares.fmul(performanceIndices[userInfo.withdrawRound], 1e18);
         COLLATERAL.safeTransfer(msg.sender, pendingWithdrawAmount);
 
-        pendingWithdraws -= userInfo.withdrawnShares;
-        userInfo.totalShares -= userInfo.withdrawnShares;
+        emit CompleteWithdraw(msg.sender, userInfo.withdrawRound, userInfo.withdrawnShares, pendingWithdrawAmount);
+
         userInfo.withdrawnShares = 0;
         userInfo.withdrawRound = 0;
     }
@@ -239,7 +256,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
 
     function startNewRound(uint256 _listingId) external requiresAuth {
         /// Check if listing ID is valid & last round's expiry is over
-        (,,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(_listingId);
+        (,uint256 strikePrice,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(_listingId);
         (, uint256 expiry,,) = LYRA_MARKET.optionBoards(boardId);
         require(expiry >= block.timestamp, "INVALID_LISTING_ID");
         require(block.timestamp > currentExpiry, "ROUND_NOT_OVER");
@@ -258,8 +275,11 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
                 COLLATERAL.safeTransfer(feeReceipient, totalFees);
             }
             uint256 collectedFunds = collateralWithdrawn + premiumCollected - totalFees;
-            uint256 newIndex = collectedFunds / totalShares;
+            uint256 newIndex = collectedFunds.fdiv(totalShares, 1e18);
             performanceIndices[currentRound] = newIndex;
+
+            totalShares += pendingDeposits.fdiv(newIndex, 1e18);
+            totalShares -= pendingWithdraws;
 
             uint256 fundsPendingWithdraws = pendingWithdraws.fmul(newIndex, 1e18);
             totalFunds = collectedFunds + pendingDeposits - fundsPendingWithdraws;
@@ -275,22 +295,29 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         currentRound++;
         currentListingId = _listingId;
         currentExpiry = expiry;
+        currentStrike = strikePrice;
     }
 
     function sellOptions(uint256 _amt) external onlyKeeper {
-        _amt = _amt == type(uint256).max ? totalFunds - usedFunds : _amt;
-        require(_amt + usedFunds <= totalFunds, "INSUFFICIENT_FUNDS");
+        uint256 maxAmt = (totalFunds - usedFunds).fdiv(currentStrike, 1e18);
+        _amt = _amt > maxAmt ? maxAmt : _amt;
+        require(_amt > 0, "NO_FUNDS_REMAINING");
+
+        uint256 collateralAmt = _amt.fmul(currentStrike, 1e18);
 
         IOptionMarket.TradeType tradeType = IOptionMarket.TradeType.SHORT_PUT;
-        (,,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(currentListingId);
-        (,, uint256 iv,) = LYRA_MARKET.optionBoards(boardId);
-        IOptionMarketViewer.TradePremiumView memory tradePremium = MARKET_VIEWER.getPremiumForOpen(
-            currentListingId, tradeType, _amt
-        );
-        require(iv - tradePremium.newIv < ivLimit, "IV_LIMIT_HIT");
 
-        COLLATERAL.safeApprove(address(LYRA_MARKET), _amt);
+        IOptionMarketViewer.TradePremiumView memory zeroTradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, 0);
+        IOptionMarketViewer.TradePremiumView memory tradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, _amt);
+
+        require(zeroTradePremium.newIv - tradePremium.newIv < ivLimit, "IV_LIMIT_HIT");
+
+        COLLATERAL.safeApprove(address(LYRA_MARKET), collateralAmt);
         uint256 totalCost = LYRA_MARKET.openPosition(currentListingId, tradeType, _amt);
+
         premiumCollected += totalCost;
+        usedFunds += collateralAmt;
+
+        emit SellOptions(currentRound, _amt, totalCost);
     }
 }

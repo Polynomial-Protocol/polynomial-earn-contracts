@@ -7,6 +7,7 @@ import { SafeDecimalMath } from "../synthetix/SafeDecimalMath.sol";
 
 import { MockSynth } from "./MockSynth.sol";
 import { MockOptionViewer } from "./MockOptionViewer.sol";
+import "hardhat/console.sol";
 
 contract MockOptionMarket {
     using SafeDecimalMath for uint;

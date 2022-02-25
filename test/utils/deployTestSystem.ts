@@ -162,12 +162,12 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
 
     tx = await ethCoveredCall.setFeeReceipient(feeRecepient.address);
     tx.wait();
-    tx = await ethCoveredPut.setKeeper(feeRecepient.address);
+    tx = await ethCoveredPut.setFeeReceipient(feeRecepient.address);
     tx.wait();
 
-    tx = await btcCoveredCall.setKeeper(feeRecepient.address);
+    tx = await btcCoveredCall.setFeeReceipient(feeRecepient.address);
     tx.wait();
-    tx = await btcCoveredPut.setKeeper(feeRecepient.address);
+    tx = await btcCoveredPut.setFeeReceipient(feeRecepient.address);
     tx.wait();
 
     tx = await sUSD.setPermitter(ethOptionMarket.address, true);

@@ -13,8 +13,6 @@ import { IOptionMarketPricer } from "./interfaces/lyra/IOptionMarketPricer.sol";
 import { IOptionMarketViewer } from "./interfaces/lyra/IOptionMarketViewer.sol";
 import { ISynthetix } from "./interfaces/lyra/ISynthetix.sol";
 
-import "hardhat/console.sol";
-
 contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
     /// -----------------------------------------------------------------------
     /// Library usage
@@ -73,6 +71,9 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
 
     /// @notice Current Listing ID's Expiry
     uint256 public currentExpiry;
+
+    /// @notice Current Listing Strike Price
+    uint256 public currentStrike;
 
     /// @notice Total premium collected in the round
     uint256 public premiumCollected;
@@ -271,7 +272,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
 
     function startNewRound(uint256 _listingId) external requiresAuth {
         /// Check if listing ID is valid & last round's expiry is over
-        (,,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(_listingId);
+        (,uint256 strikePrice,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(_listingId);
         (, uint256 expiry,,) = LYRA_MARKET.optionBoards(boardId);
         require(expiry >= block.timestamp, "INVALID_LISTING_ID");
         require(block.timestamp > currentExpiry, "ROUND_NOT_OVER");
@@ -310,6 +311,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
         currentRound++;
         currentListingId = _listingId;
         currentExpiry = expiry;
+        currentStrike = strikePrice;
     }
 
     function sellOptions(uint256 _amt) external onlyKeeper {
@@ -331,6 +333,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, Auth {
         premiumCollected += totalCostInUnderlying;
         usedFunds += _amt;
 
-        emit SellOptions(currentRound, _amt, totalCost);
+        emit SellOptions(currentRound, _amt, totalCostInUnderlying);
     }
 }
