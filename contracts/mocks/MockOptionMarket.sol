@@ -65,11 +65,11 @@ contract MockOptionMarket {
         
         if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
             totalCost = premiums[_listingId].multiplyDecimal(amount);
-            shortCollateralCall[msg.sender][_listingId] = amount;
+            shortCollateralCall[msg.sender][_listingId] += amount;
             require(UNDERLYING.transferFrom(msg.sender, address(this), amount));
             PREMIUM_ASSET.mint(msg.sender, totalCost);
         } else if (tradeType == IOptionMarket.TradeType.SHORT_PUT) {
-            shortCollateralPut[msg.sender][_listingId] = amount;
+            shortCollateralPut[msg.sender][_listingId] += amount;
             totalCost = premiums[_listingId].multiplyDecimal(amount);
             require(PREMIUM_ASSET.transferFrom(msg.sender, address(this), amount.multiplyDecimal(listing.strike)));
             PREMIUM_ASSET.mint(msg.sender, totalCost);
