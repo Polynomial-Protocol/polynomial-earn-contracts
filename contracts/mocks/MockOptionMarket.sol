@@ -86,7 +86,7 @@ contract MockOptionMarket {
             if (listing.strike > priceAtExpiry) {
                 UNDERLYING.transfer(msg.sender, amount);
             } else {
-                uint256 ratio = (priceAtExpiry - listing.strike).divideDecimal(priceAtExpiry);
+                uint256 ratio = (listing.strike).divideDecimal(priceAtExpiry);
                 UNDERLYING.transfer(msg.sender, amount.multiplyDecimal(ratio));
             }
         } else if (tradeType == IOptionMarket.TradeType.SHORT_PUT) {

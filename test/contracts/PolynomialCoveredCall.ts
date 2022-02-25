@@ -211,7 +211,7 @@ describe("PolynomialCoveredCall", () => {
             await ethers.provider.send("evm_setNextBlockTimestamp", [ROUND_TIMESTAMPS[1]]);
             await ethers.provider.send("evm_mine", []);
 
-            tx = await ethOptionMarket.setExpiryPrice('3', toBN('3014'));
+            tx = await ethOptionMarket.setExpiryPrice('1', toBN('3014'));
             await tx.wait();
 
             await createOptionBoard(
@@ -251,6 +251,9 @@ describe("PolynomialCoveredCall", () => {
             expect(index).to.be.eq(expectedIndex);
 
             performanceIndices.push(index);
+
+            const totalFundsRound2 = await ethVault.totalFunds();
+            totalFunds.push(totalFundsRound2);
         })
 
         it("Should complete withdraw", async () => {
@@ -325,6 +328,141 @@ describe("PolynomialCoveredCall", () => {
 
             tx = await ethVault.connect(keeper).sellOptions(toBN('20'));
             await tx.wait();
+
+            const premiumCollected = await ethVault.premiumCollected();
+            totalPremiumCollected.push(premiumCollected);
+        })
+
+        it("Should be able to request withdraw - I", async () => {
+            let userInfo = await ethVault.userInfos(user1.address);
+            const totalShares = userInfo.totalShares;
+            const tx = await ethVault.connect(user1).requestWithdraw(toBN('1'));
+            await tx.wait();
+
+            userInfo = await ethVault.userInfos(user1.address);
+            expect(userInfo.withdrawRound).to.be.eq(2);
+            expect(userInfo.withdrawnShares).to.be.eq(toBN('1'));
+            expect(userInfo.totalShares).to.be.eq(totalShares.sub(toBN('1')));
+
+            const pendingWithdraws = await ethVault.pendingWithdraws();
+
+            expect(pendingWithdraws).to.be.eq(toBN('1'));
+        })
+
+        it("Should be able to request withdraw - II", async () => {
+            let userInfo = await ethVault.userInfos(user2.address);
+            const totalShares = userInfo.totalShares;
+            const tx = await ethVault.connect(user2).requestWithdraw(toBN('0.5'));
+            await tx.wait();
+
+            userInfo = await ethVault.userInfos(user2.address);
+            expect(userInfo.withdrawRound).to.be.eq(2);
+            expect(userInfo.withdrawnShares).to.be.eq(toBN('0.5'));
+            expect(userInfo.totalShares).to.be.eq(totalShares.sub(toBN('0.5')));
+
+            const pendingWithdraws = await ethVault.pendingWithdraws();
+
+            expect(pendingWithdraws).to.be.eq(toBN('1.5'));
+        })
+
+        it("Should be able to cancel withdraw", async () => {
+            let userInfo = await ethVault.userInfos(user2.address);
+            const totalShares = userInfo.totalShares;
+
+            const tx = await ethVault.connect(user2).cancelWithdraw(toBN('0.5'));
+            await tx.wait();
+
+            userInfo = await ethVault.userInfos(user2.address);
+            expect(userInfo.withdrawnShares).to.be.eq(0);
+            expect(userInfo.totalShares).to.be.eq(totalShares.add(toBN('0.5')));
+
+            const pendingWithdraws = await ethVault.pendingWithdraws();
+
+            expect(pendingWithdraws).to.be.eq(toBN('1'));
+        })
+    })
+
+    describe("Round 3", () => {
+        before(async () => {
+            let tx;
+
+            await ethers.provider.send("evm_setNextBlockTimestamp", [ROUND_TIMESTAMPS[2]]);
+            await ethers.provider.send("evm_mine", []);
+
+            tx = await ethOptionMarket.setExpiryPrice('2', toBN('3459'));
+            await tx.wait();
+
+            await createOptionBoard(
+                ethOptionMarket,
+                BigNumber.from(ROUND_TIMESTAMPS[3]),
+                toBN('0.75'),
+                [toBN('3000'), toBN('3400'), toBN('3800')],
+                [toBN('0.9'), toBN('1'), toBN('1.1')]
+            );
+
+            tx = await ethOptionMarket.setPremium('9', toBN('35.07'));
+            await tx.wait();
+        })
+
+        it("Should start new round", async () => {
+            const tx = await ethVault.startNewRound('9'); // 3400 Strike price
+            await tx.wait();
+
+            const currentRound = await ethVault.currentRound();
+            expect(currentRound).to.be.eq(3);
+
+            const premium = totalPremiumCollected[1]; // No fees as last round ended in a loss
+
+            const funds = totalFunds[1].mul(3400).div(3459); // ETH expired higher than last strike
+
+            const expectedIndex = performanceIndices[0].mul(premium.add(funds).mul(WAD).div(totalFunds[1])).div(WAD);
+
+            const index = await ethVault.performanceIndices('2');
+            expect(index).to.be.eq(expectedIndex);
+
+            performanceIndices.push(index);
+        })
+
+        it("Should complete withdraw", async () => {
+            const tx = await ethVault.connect(user1).completeWithdraw(); // Requested 1 shares
+            const receipt = await tx.wait();
+
+            const completeWithdrawEvent = receipt.events?.find(log => log.event === 'CompleteWithdraw');
+
+            const expectedAmountReceived = performanceIndices[1];
+            
+            expect(completeWithdrawEvent?.args?.user).to.be.eq(user1.address);
+            expect(completeWithdrawEvent?.args?.withdrawnRound).to.be.eq(2);
+            expect(completeWithdrawEvent?.args?.shares).to.be.eq(toBN('1'));
+            expect(completeWithdrawEvent?.args?.funds).to.be.eq(expectedAmountReceived);
+        })
+
+        it("Should sell options - I", async () => {
+            const _tx = await synthetix.setRate(ethers.utils.formatBytes32String("sETH"), toBN('3357.14'));
+            await _tx.wait();
+            const tx = await ethVault.connect(keeper).sellOptions(toBN('20'));
+            await tx.wait();
+
+            const expectedPremium = 20 * 35.07 / 3357.14;
+            const premiumCollected = await ethVault.premiumCollected();
+            
+            expect(premiumCollected).to.be.closeTo(toBN(String(expectedPremium)), 1e6);
+        })
+
+        it("Should sell options - II", async () => {
+            let tx;
+
+            tx = await ethVault.connect(keeper).sellOptions(toBN('20'));
+            await tx.wait();
+
+            tx = await ethVault.connect(keeper).sellOptions(toBN('20'));
+            await tx.wait();
+
+            tx = await ethVault.connect(keeper).sellOptions(toBN('20'));
+            await tx.wait();
+
+            const premiumCollected = await ethVault.premiumCollected();
+            totalPremiumCollected.push(premiumCollected);
         })
     })
 })
