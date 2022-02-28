@@ -13,7 +13,9 @@ import { IOptionMarket } from "./interfaces/lyra/IOptionMarket.sol";
 import { IOptionMarketPricer } from "./interfaces/lyra/IOptionMarketPricer.sol";
 import { IOptionMarketViewer } from "./interfaces/lyra/IOptionMarketViewer.sol";
 
-contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth {
+import { Pausable } from "./utils/Pausable.sol";
+
+contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, Pausable {
     /// -----------------------------------------------------------------------
     /// Library usage
     /// -----------------------------------------------------------------------
@@ -140,7 +142,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth {
     /// User actions
     /// -----------------------------------------------------------------------
 
-    function deposit(uint256 _amt) external override nonReentrant {
+    function deposit(uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
         require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
@@ -151,7 +153,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth {
         }
     }
 
-    function deposit(address _user, uint256 _amt) external override nonReentrant {
+    function deposit(address _user, uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
         require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
@@ -181,7 +183,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth {
         userInfo.totalShares -= _shares;
     }
 
-    function cancelWithdraw(uint256 _shares) external override nonReentrant {
+    function cancelWithdraw(uint256 _shares) external override nonReentrant whenNotPaused {
         UserInfo storage userInfo = userInfos[msg.sender];
 
         require(userInfo.withdrawnShares >= _shares, "NO_WITHDRAW_REQUESTS");
@@ -289,7 +291,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth {
         currentStrike = strikePrice;
     }
 
-    function sellOptions(uint256 _amt) external onlyKeeper nonReentrant {
+    function sellOptions(uint256 _amt) external onlyKeeper nonReentrant whenNotPaused {
         uint256 maxAmt = (totalFunds - usedFunds).fdiv(currentStrike, 1e18);
         _amt = _amt > maxAmt ? maxAmt : _amt;
         require(_amt > 0, "NO_FUNDS_REMAINING");

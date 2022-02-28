@@ -14,7 +14,9 @@ import { IOptionMarketPricer } from "./interfaces/lyra/IOptionMarketPricer.sol";
 import { IOptionMarketViewer } from "./interfaces/lyra/IOptionMarketViewer.sol";
 import { ISynthetix } from "./interfaces/lyra/ISynthetix.sol";
 
-contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth {
+import { Pausable } from "./utils/Pausable.sol";
+
+contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth, Pausable {
     /// -----------------------------------------------------------------------
     /// Library usage
     /// -----------------------------------------------------------------------
@@ -156,7 +158,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth 
     /// User actions
     /// -----------------------------------------------------------------------
 
-    function deposit(uint256 _amt) external override nonReentrant {
+    function deposit(uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
         require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
@@ -167,7 +169,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth 
         }
     }
 
-    function deposit(address _user, uint256 _amt) external override nonReentrant {
+    function deposit(address _user, uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
         require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
@@ -197,7 +199,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth 
         userInfo.totalShares -= _shares;
     }
 
-    function cancelWithdraw(uint256 _shares) external override nonReentrant {
+    function cancelWithdraw(uint256 _shares) external override nonReentrant whenNotPaused {
         UserInfo storage userInfo = userInfos[msg.sender];
 
         require(userInfo.withdrawnShares >= _shares, "NO_WITHDRAW_REQUESTS");
@@ -261,6 +263,14 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth 
         keeper = _keeper;
     }
 
+    function pause() external requiresAuth {
+        _pause();
+    }
+
+    function unpause() external requiresAuth {
+        _unpause();
+    }
+
     function startNewRound(uint256 _listingId) external requiresAuth nonReentrant {
         /// Check if listing ID is valid & last round's expiry is over
         (,uint256 strikePrice,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(_listingId);
@@ -305,7 +315,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth 
         currentStrike = strikePrice;
     }
 
-    function sellOptions(uint256 _amt) external onlyKeeper nonReentrant {
+    function sellOptions(uint256 _amt) external onlyKeeper nonReentrant whenNotPaused {
         _amt = _amt > (totalFunds - usedFunds) ? totalFunds - usedFunds : _amt;
         require(_amt > 0, "NO_FUNDS_REMAINING");
 
