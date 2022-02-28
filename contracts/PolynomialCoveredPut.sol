@@ -111,9 +111,29 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     /// Events
     /// -----------------------------------------------------------------------
 
+    event StartNewRound(uint256 indexed round, uint256 indexed listingId, uint256 newIndex, uint256 expiry, uint256 strikePrice);
+
     event SellOptions(uint256 indexed round, uint256 optionsSold, uint256 totalCost);
 
     event CompleteWithdraw(address indexed user, uint256 indexed withdrawnRound, uint256 shares, uint256 funds);
+
+    event Deposit(address indexed user, uint256 indexed depositRound, uint256 amt);
+
+    event RequestWithdraw(address indexed user, uint256 indexed withdrawnRound, uint256 shares);
+
+    event CancelWithdraw(address indexed user, uint256 indexed withdrawnRound, uint256 shares);
+
+    event SetCap(address indexed auth, uint256 oldCap, uint256 newCap);
+
+    event SetUserDepositLimit(address indexed auth, uint256 oldDepositLimit, uint256 newDepositLimit);
+
+    event SetIvLimit(address indexed auth, uint256 oldLimit, uint256 newLimit);
+
+    event SetFees(address indexed auth, uint256 oldManageFee, uint256 oldPerfFee, uint256 newManageFee, uint256 newPerfFee);
+
+    event SetFeeReceipient(address indexed auth, address oldReceipient, address newReceipient);
+
+    event SetKeeper(address indexed auth, address oldKeeper, address newKeeper);
 
     /// -----------------------------------------------------------------------
     /// Modifiers
@@ -151,6 +171,8 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
         } else {
             _deposit(msg.sender, _amt);
         }
+
+        emit Deposit(msg.sender, currentRound, _amt);
     }
 
     function deposit(address _user, uint256 _amt) external override nonReentrant whenNotPaused {
@@ -162,6 +184,8 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
         } else {
             _deposit(_user, _amt);
         }
+
+        emit Deposit(_user, currentRound, _amt);
     }
 
     function requestWithdraw(uint256 _shares) external override nonReentrant {
@@ -181,6 +205,8 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
             pendingWithdraws += _shares;
         }
         userInfo.totalShares -= _shares;
+
+        emit RequestWithdraw(msg.sender, currentRound, _shares);
     }
 
     function cancelWithdraw(uint256 _shares) external override nonReentrant whenNotPaused {
@@ -192,6 +218,8 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
         userInfo.withdrawnShares -= _shares;
         pendingWithdraws -= _shares;
         userInfo.totalShares += _shares;
+
+        emit CancelWithdraw(msg.sender, currentRound, _shares);
     }
 
     function completeWithdraw() external override nonReentrant {
@@ -218,16 +246,19 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
 
     function setCap(uint256 _newCap) external requiresAuth {
         require(_newCap > 0, "CAP_CANNOT_BE_ZERO");
+        emit SetCap(msg.sender, vaultCapacity, _newCap);
         vaultCapacity = _newCap;
     }
 
     function setUserDepositLimit(uint256 _depositLimit) external requiresAuth {
         require(_depositLimit > 0, "LIMIT_CANNOT_BE_ZERO");
+        emit SetUserDepositLimit(msg.sender, userDepositLimit, _depositLimit);
         userDepositLimit = _depositLimit;
     }
 
     function setIvLimit(uint256 _ivLimit) external requiresAuth {
         require(_ivLimit > 0, "SLIPPAGE_CANNOT_BE_ZERO");
+        emit SetIvLimit(msg.sender, ivLimit, _ivLimit);
         ivLimit = _ivLimit;
     }
 
@@ -235,15 +266,21 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
         require(_perfomanceFee <= 1e7, "PERF_FEE_TOO_HIGH");
         require(_managementFee <= 5e6, "MANAGE_FEE_TOO_HIGH");
 
+        emit SetFees(msg.sender, managementFee, performanceFee, _managementFee, _perfomanceFee);
+
         performanceFee = _perfomanceFee;
         managementFee = _managementFee;
     }
 
     function setFeeReceipient(address _feeReceipient) external requiresAuth {
+        require(_feeReceipient != address(0x0), "CANNOT_BE_VOID");
+        emit SetFeeReceipient(msg.sender, feeReceipient, _feeReceipient);
         feeReceipient = _feeReceipient;
     }
 
     function setKeeper(address _keeper) external requiresAuth {
+        require(_keeper != address(0x0), "CANNOT_BE_VOID");
+        emit SetKeeper(msg.sender, keeper, _keeper);
         keeper = _keeper;
     }
 
@@ -281,8 +318,12 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
             pendingWithdraws = 0;
             usedFunds = 0;
             premiumCollected = 0;
+
+            emit StartNewRound(currentRound + 1, _listingId, newIndex, expiry, strikePrice);
         } else {
             totalFunds = COLLATERAL.balanceOf(address(this));
+
+            emit StartNewRound(1, _listingId, 1e18, expiry, strikePrice);
         }
         /// Set listing ID and start round
         currentRound++;
