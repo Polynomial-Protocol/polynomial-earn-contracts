@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 import { Auth, Authority } from "@rari-capital/solmate/src/auth/Auth.sol";
 import { ERC20 } from "@rari-capital/solmate/src/tokens/ERC20.sol";
 import { FixedPointMathLib } from "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
+import { ReentrancyGuard } from "@rari-capital/solmate/src/utils/ReentrancyGuard.sol";
 import { SafeTransferLib } from "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 
 import { IPolynomialCoveredPut } from "./interfaces/IPolynomialCoveredPut.sol";
@@ -12,7 +13,7 @@ import { IOptionMarket } from "./interfaces/lyra/IOptionMarket.sol";
 import { IOptionMarketPricer } from "./interfaces/lyra/IOptionMarketPricer.sol";
 import { IOptionMarketViewer } from "./interfaces/lyra/IOptionMarketViewer.sol";
 
-contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
+contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth {
     /// -----------------------------------------------------------------------
     /// Library usage
     /// -----------------------------------------------------------------------
@@ -139,39 +140,29 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
     /// User actions
     /// -----------------------------------------------------------------------
 
-    function depositForRoundZero(uint256 _amt) external override {
+    function deposit(uint256 _amt) external override nonReentrant {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(currentRound == 0, "ROUND_ZERO_OVER");
-
-        COLLATERAL.safeTransferFrom(msg.sender, address(this), _amt);
-        require(COLLATERAL.balanceOf(address(this)) <= vaultCapacity, "CAPACITY_EXCEEDED");
-
-        UserInfo storage userInfo = userInfos[msg.sender];
-        userInfo.totalShares += _amt;
-        totalShares += _amt;
-    }
-
-    function deposit(uint256 _amt) external override {
-        require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(currentRound > 0, "ROUND_ZERO_NOT_OVER");
         require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
-        COLLATERAL.safeTransferFrom(msg.sender, address(this), _amt);
-
-        pendingDeposits += _amt;
-        require(totalFunds + pendingDeposits < vaultCapacity, "CAPACITY_EXCEEDED");
-
-        UserInfo storage userInfo = userInfos[msg.sender];
-        if (userInfo.depositRound > 0 && userInfo.depositRound < currentRound) {
-            userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
-            userInfo.pendingDeposit = _amt;
+        if (currentRound == 0) {
+            _depositForRoundZero(msg.sender, _amt);
         } else {
-            userInfo.pendingDeposit += _amt;
+            _deposit(msg.sender, _amt);
         }
-        userInfo.depositRound = currentRound;
     }
 
-    function requestWithdraw(uint256 _shares) external override {
+    function deposit(address _user, uint256 _amt) external override nonReentrant {
+        require(_amt > 0, "AMT_CANNOT_BE_ZERO");
+        require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
+
+        if (currentRound == 0) {
+            _depositForRoundZero(_user, _amt);
+        } else {
+            _deposit(_user, _amt);
+        }
+    }
+
+    function requestWithdraw(uint256 _shares) external override nonReentrant {
         UserInfo storage userInfo = userInfos[msg.sender];
 
         require(userInfo.totalShares >= _shares, "INSUFFICIENT_SHARES");
@@ -190,7 +181,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         userInfo.totalShares -= _shares;
     }
 
-    function cancelWithdraw(uint256 _shares) external override {
+    function cancelWithdraw(uint256 _shares) external override nonReentrant {
         UserInfo storage userInfo = userInfos[msg.sender];
 
         require(userInfo.withdrawnShares >= _shares, "NO_WITHDRAW_REQUESTS");
@@ -201,7 +192,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         userInfo.totalShares += _shares;
     }
 
-    function completeWithdraw() external override {
+    function completeWithdraw() external override nonReentrant {
         UserInfo storage userInfo = userInfos[msg.sender];
 
         require(currentRound > userInfo.withdrawRound, "ROUND_NOT_OVER");
@@ -254,7 +245,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         keeper = _keeper;
     }
 
-    function startNewRound(uint256 _listingId) external requiresAuth {
+    function startNewRound(uint256 _listingId) external requiresAuth nonReentrant {
         /// Check if listing ID is valid & last round's expiry is over
         (,uint256 strikePrice,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(_listingId);
         (, uint256 expiry,,) = LYRA_MARKET.optionBoards(boardId);
@@ -298,7 +289,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         currentStrike = strikePrice;
     }
 
-    function sellOptions(uint256 _amt) external onlyKeeper {
+    function sellOptions(uint256 _amt) external onlyKeeper nonReentrant {
         uint256 maxAmt = (totalFunds - usedFunds).fdiv(currentStrike, 1e18);
         _amt = _amt > maxAmt ? maxAmt : _amt;
         require(_amt > 0, "NO_FUNDS_REMAINING");
@@ -319,5 +310,34 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, Auth {
         usedFunds += collateralAmt;
 
         emit SellOptions(currentRound, _amt, totalCost);
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Internal Methods
+    /// -----------------------------------------------------------------------
+
+    function _depositForRoundZero(address _user, uint256 _amt) internal {
+        COLLATERAL.safeTransferFrom(msg.sender, address(this), _amt);
+        require(COLLATERAL.balanceOf(address(this)) <= vaultCapacity, "CAPACITY_EXCEEDED");
+
+        UserInfo storage userInfo = userInfos[_user];
+        userInfo.totalShares += _amt;
+        totalShares += _amt;
+    }
+
+    function _deposit(address _user, uint256 _amt) internal {
+        COLLATERAL.safeTransferFrom(msg.sender, address(this), _amt);
+
+        pendingDeposits += _amt;
+        require(totalFunds + pendingDeposits < vaultCapacity, "CAPACITY_EXCEEDED");
+
+        UserInfo storage userInfo = userInfos[_user];
+        if (userInfo.depositRound > 0 && userInfo.depositRound < currentRound) {
+            userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
+            userInfo.pendingDeposit = _amt;
+        } else {
+            userInfo.pendingDeposit += _amt;
+        }
+        userInfo.depositRound = currentRound;
     }
 }

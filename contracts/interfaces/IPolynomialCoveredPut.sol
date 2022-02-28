@@ -13,11 +13,11 @@ interface IPolynomialCoveredPut {
 
     function deposit(uint256 _amt) external;
 
+    function deposit(address _user, uint256 _amt) external;
+
     function requestWithdraw(uint256 _shares) external;
 
     function completeWithdraw() external;
 
     function cancelWithdraw(uint256 _shares) external;
-
-    function depositForRoundZero(uint256 _amt) external;
 }

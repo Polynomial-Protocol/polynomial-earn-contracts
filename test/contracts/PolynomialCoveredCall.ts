@@ -54,7 +54,7 @@ describe("PolynomialCoveredCall", () => {
 
     describe("Round 0", () => {
         it("Should Deposit - I", async () => {
-            const tx = await ethVault.connect(user0).depositForRoundZero(toBN('25'));
+            const tx = await ethVault.connect(user0)["deposit(uint256)"](toBN('25'));
             await tx.wait();
 
             const userInfo = await ethVault.userInfos(user0.address);
@@ -64,19 +64,19 @@ describe("PolynomialCoveredCall", () => {
         it("Should Deposit - II", async () => {
             const amount1 = toBN('16.432');
             const amount2 = toBN('0.8753');
-            let tx = await ethVault.connect(user1).depositForRoundZero(amount1);
+            let tx = await ethVault.connect(user1)["deposit(uint256)"](amount1);
             await tx.wait();
 
             const userInfo1 = await ethVault.userInfos(user1.address);
             expect(userInfo1.totalShares).to.be.eq(amount1);
 
-            tx = await ethVault.connect(user2).depositForRoundZero(amount2);
+            tx = await ethVault.connect(user2)["deposit(uint256)"](amount2);
             await tx.wait();
 
             const userInfo2 = await ethVault.userInfos(user2.address);
             expect(userInfo2.totalShares).to.be.eq(amount2);
 
-            tx = await ethVault.connect(user0).depositForRoundZero(toBN('25'));
+            tx = await ethVault.connect(user0)["deposit(uint256)"](toBN('25'));
             await tx.wait();
 
             const userInfo = await ethVault.userInfos(user0.address);
@@ -165,7 +165,7 @@ describe("PolynomialCoveredCall", () => {
         })
 
         it("Should be able to deposit for the next round - I", async () => {
-            const tx = await ethVault.connect(user3).deposit(toBN('50'));
+            const tx = await ethVault.connect(user3)["deposit(uint256)"](toBN('50'));
             await tx.wait();
 
             const userInfo = await ethVault.userInfos(user3.address);
@@ -177,7 +177,7 @@ describe("PolynomialCoveredCall", () => {
         })
 
         it("Should be able to deposit for the next round - II", async () => {
-            const tx = await ethVault.connect(user2).deposit(toBN('20'));
+            const tx = await ethVault.connect(user2)["deposit(uint256)"](toBN('20'));
             await tx.wait();
 
             const userInfo = await ethVault.userInfos(user2.address);
@@ -302,7 +302,7 @@ describe("PolynomialCoveredCall", () => {
         })
 
         it("Should be able to deposit for the next round", async () => {
-            const tx = await ethVault.connect(user3).deposit(toBN('20'));
+            const tx = await ethVault.connect(user3)["deposit(uint256)"](toBN('20'));
             await tx.wait();
 
             const userInfo = await ethVault.userInfos(user3.address); // User has 50 ETH deposit in last round
