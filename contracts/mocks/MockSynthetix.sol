@@ -5,6 +5,7 @@ import { ISynthetix } from "../interfaces/lyra/ISynthetix.sol";
 import { MockSynth } from "./MockSynth.sol";
 
 import { FixedPointMathLib } from "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
+import "hardhat/console.sol";
 
 contract MockSynthetix is ISynthetix {
     using FixedPointMathLib for uint256;
@@ -44,14 +45,14 @@ contract MockSynthetix is ISynthetix {
         require(exchangeForAddress == msg.sender);
 
         MockSynth sourceSynth = MockSynth(synths[sourceCurrencyKey]);
-        MockSynth destinationSynth = MockSynth(synths[sourceCurrencyKey]);
+        MockSynth destinationSynth = MockSynth(synths[destinationCurrencyKey]);
 
         sourceSynth.burn(msg.sender, sourceAmount);
 
         if (sourceCurrencyKey == "sUSD") {
             amountReceived = sourceAmount.fdiv(rates[destinationCurrencyKey], 1e18);
         } else if (destinationCurrencyKey == "sUSD") {
-            amountReceived = sourceAmount.fmul(rates[destinationCurrencyKey], 1e18);
+            amountReceived = sourceAmount.fmul(rates[sourceCurrencyKey], 1e18);
         }
 
         destinationSynth.mint(msg.sender, amountReceived);

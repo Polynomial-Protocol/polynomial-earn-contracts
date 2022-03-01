@@ -23,7 +23,7 @@ contract MockOptionMarket {
     mapping(uint256 => uint256) premiums;
     mapping(address => mapping(uint256 => uint256)) shortCollateralCall;
     mapping(address => mapping(uint256 => uint256)) shortCollateralPut;
-    mapping(uint256 => uint256) expiryPrice;
+    mapping(uint256 => uint256) public boardToPriceAtExpiry;
 
     constructor(MockSynth _underlying, MockSynth _premium) {
         owner = msg.sender;
@@ -80,13 +80,15 @@ contract MockOptionMarket {
     function settleOptions(uint listingId, IOptionMarket.TradeType tradeType) external {
         IOptionMarket.OptionListing memory listing = optionListings[listingId];
         
-        uint256 priceAtExpiry = expiryPrice[listing.boardId];
+        uint256 priceAtExpiry = boardToPriceAtExpiry[listing.boardId];
 
         if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
             uint256 amount = shortCollateralCall[msg.sender][listingId];
             if (listing.strike > priceAtExpiry) {
                 UNDERLYING.transfer(msg.sender, amount);
             } else {
+                // console.log(listingId);
+                // console.log(listing.strike, priceAtExpiry);
                 uint256 ratio = (listing.strike).divideDecimal(priceAtExpiry);
                 UNDERLYING.transfer(msg.sender, amount.multiplyDecimal(ratio));
             }
@@ -106,7 +108,7 @@ contract MockOptionMarket {
     function setExpiryPrice(uint boardId, uint price) external {
         require(msg.sender == owner);
 
-        expiryPrice[boardId] = price;
+        boardToPriceAtExpiry[boardId] = price;
     }
     
     function setOptionViewer(MockOptionViewer _optionViewer) external {

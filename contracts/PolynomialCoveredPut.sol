@@ -304,7 +304,8 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
                 totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
                 COLLATERAL.safeTransfer(feeReceipient, totalFees);
             }
-            uint256 collectedFunds = collateralWithdrawn + premiumCollected - totalFees;
+            uint256 unusedFunds = totalFunds - usedFunds;
+            uint256 collectedFunds = collateralWithdrawn + premiumCollected + unusedFunds - totalFees;
             uint256 newIndex = collectedFunds.fdiv(totalShares, 1e18);
             performanceIndices[currentRound] = newIndex;
 

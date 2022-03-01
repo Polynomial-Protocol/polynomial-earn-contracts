@@ -96,6 +96,9 @@ contract PolynomialShortVol is IPolynomialShortVol, ReentrancyGuard, Auth, Pausa
     /// @notice Funds used so far in the current round
     uint256 public usedFunds;
 
+    /// @notice Total number of options sold in the current round
+    uint256 public optionsSold;
+
     /// @notice Total shares issued so far
     uint256 public totalShares;
 
@@ -315,42 +318,49 @@ contract PolynomialShortVol is IPolynomialShortVol, ReentrancyGuard, Auth, Pausa
         require(expiry >= block.timestamp, "INVALID_LISTING_ID");
         require(block.timestamp > currentExpiry, "ROUND_NOT_OVER");
 
-        if (currentRound > 0) {
-            uint256 preSettleBal = COLLATERAL.balanceOf(address(this));
-            LYRA_MARKET.settleOptions(currentPutStrike, IOptionMarket.TradeType.SHORT_PUT);
-            LYRA_MARKET.settleOptions(currentCallStrike, IOptionMarket.TradeType.SHORT_CALL);
-            uint256 postSettleBal = COLLATERAL.balanceOf(address(this));
-            uint256 collateralWithdrawn = postSettleBal - preSettleBal;
-            uint256 totalFees;
+        uint256 newIndex = 1e18;
 
-            if (collateralWithdrawn == usedFunds) {
-                uint256 currentRoundManagementFees = collateralWithdrawn.fmul(managementFee, WEEKS_PER_YEAR);
+        if (currentRound > 0) {
+            uint256 totalFees;
+            (,,,,,,, uint256 boardId) = LYRA_MARKET.optionListings(currentCallListingId);
+            uint256 expiryPrice = LYRA_MARKET.boardToPriceAtExpiry(boardId);
+
+            uint256 preSettleUnderBal = UNDERLYING.balanceOf(address(this));
+            LYRA_MARKET.settleOptions(currentPutListingId, IOptionMarket.TradeType.SHORT_PUT);
+            LYRA_MARKET.settleOptions(currentCallListingId, IOptionMarket.TradeType.SHORT_CALL);
+            uint256 postSettleUnderBal = UNDERLYING.balanceOf(address(this));
+
+            SYNTHETIX.exchange(SYNTH_KEY_UNDERLYING, postSettleUnderBal - preSettleUnderBal, SYNTH_KEY_PREMIUM);
+
+            uint256 totalCollateralBal = COLLATERAL.balanceOf(address(this)) - pendingDeposits;
+
+            if (expiryPrice > currentPutStrike && expiryPrice < currentCallStrike) {
+                uint256 currentRoundManagementFees = totalCollateralBal.fmul(managementFee, WEEKS_PER_YEAR);
                 uint256 currentRoundPerfomanceFee = premiumCollected.fmul(performanceFee, WEEKS_PER_YEAR);
                 totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
                 COLLATERAL.safeTransfer(feeReceipient, totalFees);
             }
 
-            uint256 collectedFunds = collateralWithdrawn + premiumCollected - totalFees;
-            uint256 newIndex = collectedFunds.fdiv(totalShares, 1e18);
+            uint256 deployableFunds = totalCollateralBal + premiumCollected - totalFees;
+            newIndex = deployableFunds.fdiv(totalShares, 1e18);
             performanceIndices[currentRound] = newIndex;
 
             totalShares += pendingDeposits.fdiv(newIndex, 1e18);
             totalShares -= pendingWithdraws;
 
             uint256 fundsPendingWithdraws = pendingWithdraws.fmul(newIndex, 1e18);
-            totalFunds = collectedFunds + pendingDeposits - fundsPendingWithdraws;
-
+            totalFunds = deployableFunds + pendingDeposits - fundsPendingWithdraws;
+            
             pendingDeposits = 0;
             pendingWithdraws = 0;
             usedFunds = 0;
             premiumCollected = 0;
-
-            emit StartNewRound(currentRound + 1, _callListingId, _putListingId, newIndex);
+            optionsSold = 0;
         } else {
             totalFunds = COLLATERAL.balanceOf(address(this));
-
-            emit StartNewRound(1, _callListingId, _putListingId, 1e18);
         }
+
+        emit StartNewRound(currentRound + 1, _callListingId, _putListingId, newIndex);
 
         currentRound++;
         currentCallListingId = _callListingId;
@@ -366,7 +376,7 @@ contract PolynomialShortVol is IPolynomialShortVol, ReentrancyGuard, Auth, Pausa
         uint256 optionsToSell = SYNTHETIX.exchange(SYNTH_KEY_PREMIUM, _susdAmt, SYNTH_KEY_UNDERLYING);
         uint256 amtForPutCollateral = optionsToSell.fmul(currentPutStrike, 1e18);
 
-        require(amtForPutCollateral + _susdAmt >= totalFunds - usedFunds, "INSUFFICIENT_AMT");
+        require(amtForPutCollateral + _susdAmt <= totalFunds - usedFunds, "INSUFFICIENT_AMT");
 
         IOptionMarketViewer.TradePremiumView memory zeroTradePremium;
         IOptionMarketViewer.TradePremiumView memory tradePremium;
@@ -378,7 +388,7 @@ contract PolynomialShortVol is IPolynomialShortVol, ReentrancyGuard, Auth, Pausa
         require(zeroTradePremium.newIv - tradePremium.newIv < ivLimit / 2, "IV_LIMIT_HIT");
 
         UNDERLYING.safeApprove(address(LYRA_MARKET), optionsToSell);
-        uint256 callPremiumReceived = LYRA_MARKET.openPosition(currentPutListingId, tradeType, optionsToSell);
+        uint256 callPremiumReceived = LYRA_MARKET.openPosition(currentCallListingId, tradeType, optionsToSell);
 
         tradeType = IOptionMarket.TradeType.SHORT_PUT;
 
@@ -394,6 +404,7 @@ contract PolynomialShortVol is IPolynomialShortVol, ReentrancyGuard, Auth, Pausa
 
         premiumCollected += totalPremiumReceived;
         usedFunds += amtForPutCollateral + _susdAmt;
+        optionsSold += optionsToSell;
 
         emit SellOptions(currentRound, optionsToSell, totalPremiumReceived);
     }

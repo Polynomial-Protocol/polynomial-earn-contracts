@@ -326,7 +326,8 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
                 totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
                 UNDERLYING.safeTransfer(feeReceipient, totalFees);
             }
-            uint256 collectedFunds = collateralWithdrawn + premiumCollected - totalFees;
+            uint256 unusedFunds = totalFunds - usedFunds;
+            uint256 collectedFunds = collateralWithdrawn + premiumCollected + unusedFunds - totalFees;
             uint256 newIndex = collectedFunds.fdiv(totalShares, 1e18);
             performanceIndices[currentRound] = newIndex;
 
