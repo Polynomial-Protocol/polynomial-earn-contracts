@@ -320,7 +320,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
             uint256 collateralWithdrawn = postSettleBal - preSettleBal;
             uint256 totalFees;
 
-            if (collateralWithdrawn == totalFunds) {
+            if (collateralWithdrawn == usedFunds) {
                 uint256 currentRoundManagementFees = collateralWithdrawn.fmul(managementFee, WEEKS_PER_YEAR);
                 uint256 currentRoundPerfomanceFee = premiumCollected.fmul(performanceFee, WEEKS_PER_YEAR);
                 totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
@@ -344,7 +344,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
             emit StartNewRound(currentRound + 1, _listingId, newIndex, expiry, strikePrice);
         } else {
             totalFunds = UNDERLYING.balanceOf(address(this));
-            
+
             emit StartNewRound(1, _listingId, 1e18, expiry, strikePrice);
         }
         /// Set listing ID and start round

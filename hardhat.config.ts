@@ -35,6 +35,11 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    optimistic_kovan: {
+      url: process.env.OPTIMISM_KOVAN_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
     hardhat: {
       // forking: {
       //   url: process.env.OPTIMISM_URL || "",
@@ -50,7 +55,7 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: "ISMIZ4VEQH5PGVBRD76RJ7A986W3F829Y7"
   },
   mocha: {
     timeout: 200000

@@ -1,6 +1,8 @@
-import { ethers, network } from 'hardhat';
+import hre from 'hardhat';
 import * as constants from "../../constants/constants";
 import { PolynomialCoveredCall, PolynomialCoveredPut } from "../../typechain";
+
+const { ethers, network } = hre;
 
 export async function deployVault(asset: String, vaultType: String): Promise<PolynomialCoveredCall | PolynomialCoveredPut> {
     if (vaultType == "coveredCall") {
@@ -25,6 +27,22 @@ async function deployCoveredCall(asset: String): Promise<PolynomialCoveredCall> 
 
     await polynomialCoveredCall.deployed();
 
+    // const txHash = polynomialCoveredCall.deployTransaction.hash;
+    // const txReceipt = await ethers.provider.waitForTransaction(txHash);
+
+    // await hre.run("verify:verify", {
+    //     address: txReceipt.contractAddress,
+    //     constructorArguments: [
+    //         "FX " + asset + "Covered Call",
+    //         constants.TOKEN_ADDR[networkName][asset as string],
+    //         constants.SYNTHETIX_ADDR[networkName],
+    //         constants.LYRA_MARKET[networkName][asset as string],
+    //         constants.MARKET_VIEWER[networkName][asset as string],
+    //         constants.SYNTH_KEYS[asset as string],
+    //         constants.SYNTH_KEYS["SUSD"]
+    //     ],
+    //   });
+
     return polynomialCoveredCall;
 }
 
@@ -38,7 +56,20 @@ async function deployCoveredPut(asset: String): Promise<PolynomialCoveredPut> {
         constants.MARKET_VIEWER[networkName][asset as string]
     );
 
-    await polynomialCoveredPut.deployed();
+    // await polynomialCoveredPut.deployed();
+
+    // const txHash = polynomialCoveredPut.deployTransaction.hash;
+    // const txReceipt = await ethers.provider.waitForTransaction(txHash);
+
+    // await hre.run("verify:verify", {
+    //     address: txReceipt.contractAddress,
+    //     constructorArguments: [
+    //         "FX " + asset + "Covered Put",
+    //         constants.TOKEN_ADDR[networkName]["SUSD"],
+    //         constants.LYRA_MARKET[networkName][asset as string],
+    //         constants.MARKET_VIEWER[networkName][asset as string]
+    //     ],
+    //   });
 
     return polynomialCoveredPut;
 }

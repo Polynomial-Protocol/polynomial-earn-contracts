@@ -298,7 +298,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
             uint256 collateralWithdrawn = postSettleBal - preSettleBal;
             uint256 totalFees;
 
-            if (collateralWithdrawn == totalFunds) {
+            if (collateralWithdrawn == usedFunds) {
                 uint256 currentRoundManagementFees = collateralWithdrawn.fmul(managementFee, WEEKS_PER_YEAR);
                 uint256 currentRoundPerfomanceFee = premiumCollected.fmul(performanceFee, WEEKS_PER_YEAR);
                 totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
