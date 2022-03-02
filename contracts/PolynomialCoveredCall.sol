@@ -121,9 +121,17 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
     /// Events
     /// -----------------------------------------------------------------------
 
-    event StartNewRound(uint256 indexed round, uint256 indexed listingId, uint256 newIndex, uint256 expiry, uint256 strikePrice);
+    event StartNewRound(
+        uint256 indexed round,
+        uint256 indexed listingId,
+        uint256 newIndex,
+        uint256 expiry,
+        uint256 strikePrice,
+        uint256 lostColl,
+        uint256 qty
+    );
 
-    event SellOptions(uint256 indexed round, uint256 optionsSold, uint256 totalCost);
+    event SellOptions(uint256 indexed round, uint256 optionsSold, uint256 totalCost, uint256 expiry, uint256 strikePrice);
 
     event CompleteWithdraw(address indexed user, uint256 indexed withdrawnRound, uint256 shares, uint256 funds);
 
@@ -342,16 +350,16 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
             uint256 fundsPendingWithdraws = pendingWithdraws.fmul(newIndex, 1e18);
             totalFunds = collectedFunds + pendingDeposits - fundsPendingWithdraws;
 
+            emit StartNewRound(currentRound + 1, _listingId, newIndex, expiry, strikePrice, usedFunds - collateralWithdrawn, usedFunds);
+
             pendingDeposits = 0;
             pendingWithdraws = 0;
             usedFunds = 0;
             premiumCollected = 0;
-
-            emit StartNewRound(currentRound + 1, _listingId, newIndex, expiry, strikePrice);
         } else {
             totalFunds = UNDERLYING.balanceOf(address(this));
 
-            emit StartNewRound(1, _listingId, 1e18, expiry, strikePrice);
+            emit StartNewRound(1, _listingId, 1e18, expiry, strikePrice, 0, 0);
         }
         /// Set listing ID and start round
         currentRound++;
@@ -379,7 +387,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
         premiumCollected += totalCostInUnderlying;
         usedFunds += _amt;
 
-        emit SellOptions(currentRound, _amt, totalCostInUnderlying);
+        emit SellOptions(currentRound, _amt, totalCostInUnderlying, currentExpiry, currentStrike);
     }
 
     /// -----------------------------------------------------------------------

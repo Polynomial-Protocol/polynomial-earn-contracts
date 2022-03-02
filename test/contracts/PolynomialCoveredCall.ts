@@ -62,8 +62,8 @@ describe("PolynomialCoveredCall", () => {
         })
 
         it("Should Deposit - II", async () => {
-            const amount1 = toBN('16.432');
-            const amount2 = toBN('0.8753');
+            const amount1 = toBN('16');
+            const amount2 = toBN('1');
             let tx = await ethVault.connect(user1)["deposit(uint256)"](amount1);
             await tx.wait();
 
@@ -197,7 +197,7 @@ describe("PolynomialCoveredCall", () => {
             const receipt = await tx.wait();
 
             const optionsSoldEvent = receipt.events?.find(log => log.event === 'SellOptions');
-            expect(optionsSoldEvent?.args?.optionsSold).to.be.closeTo(toBN('2.3073'), 1e6);
+            expect(optionsSoldEvent?.args?.optionsSold).to.be.closeTo(toBN('2'), 1e6);
 
             const premiumCollected = await ethVault.premiumCollected();
             totalPremiumCollected.push(premiumCollected);
@@ -347,14 +347,12 @@ describe("PolynomialCoveredCall", () => {
 
         it("Should be able to request withdraw - II", async () => {
             let userInfo = await ethVault.userInfos(user2.address);
-            const totalShares = userInfo.totalShares;
             const tx = await ethVault.connect(user2).requestWithdraw(toBN('0.5'));
             await tx.wait();
 
             userInfo = await ethVault.userInfos(user2.address);
             expect(userInfo.withdrawRound).to.be.eq(2);
             expect(userInfo.withdrawnShares).to.be.eq(toBN('0.5'));
-            expect(userInfo.totalShares).to.be.eq(totalShares.sub(toBN('0.5')));
 
             const pendingWithdraws = await ethVault.pendingWithdraws();
 
@@ -414,7 +412,7 @@ describe("PolynomialCoveredCall", () => {
             const expectedIndex = performanceIndices[0].mul(premium.add(funds).mul(WAD).div(totalFunds[1])).div(WAD);
 
             const index = await ethVault.performanceIndices('2');
-            expect(index).to.be.eq(expectedIndex);
+            expect(index).to.be.closeTo(expectedIndex, 1e3);
 
             performanceIndices.push(index);
         })

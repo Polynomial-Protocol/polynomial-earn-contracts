@@ -340,14 +340,12 @@ describe("PolynomialCoveredPut", () => {
 
         it("Should be able to request withdraw - II", async () => {
             let userInfo = await ethVault.userInfos(user2.address);
-            const totalShares = userInfo.totalShares;
             const tx = await ethVault.connect(user2).requestWithdraw(toBN('50000'));
             await tx.wait();
 
             userInfo = await ethVault.userInfos(user2.address);
             expect(userInfo.withdrawRound).to.be.eq(2);
             expect(userInfo.withdrawnShares).to.be.eq(toBN('50000'));
-            expect(userInfo.totalShares).to.be.eq(totalShares.sub(toBN('50000')));
 
             const pendingWithdraws = await ethVault.pendingWithdraws();
 
