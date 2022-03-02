@@ -191,6 +191,11 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     function requestWithdraw(uint256 _shares) external override nonReentrant {
         UserInfo storage userInfo = userInfos[msg.sender];
 
+        if (userInfo.depositRound < currentRound && userInfo.pendingDeposit > 0) {
+            userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
+            userInfo.pendingDeposit = 0;
+        }
+
         require(userInfo.totalShares >= _shares, "INSUFFICIENT_SHARES");
 
         if (currentRound == 0) {
