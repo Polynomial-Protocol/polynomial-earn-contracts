@@ -55,7 +55,9 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: "ISMIZ4VEQH5PGVBRD76RJ7A986W3F829Y7"
+    apiKey: {
+      optimisticKovan: process.env.ETHERSCAN_API_KEY
+    }
   },
   mocha: {
     timeout: 200000
