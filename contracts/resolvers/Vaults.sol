@@ -5,17 +5,15 @@ import { FixedPointMathLib } from "@rari-capital/solmate/src/utils/FixedPointMat
 import { ERC20 } from "@rari-capital/solmate/src/tokens/ERC20.sol";
 
 interface IVault {
-    struct UserInfo {
-        uint256 depositRound;
-        uint256 pendingDeposit;
-        uint256 withdrawRound;
-        uint256 withdrawnShares;
-        uint256 totalShares;
-    }
-
     function currentRound() external view returns (uint256);
 
-    function userInfos(address _user) external view returns (UserInfo memory);
+    function userInfos(address _user) external view returns (
+        uint256 depositRound,
+        uint256 pendingDeposit,
+        uint256 withdrawRound,
+        uint256 withdrawnShares,
+        uint256 totalShares
+    );
 
     function performanceIndices(uint256 _round) external view returns (uint256);
 }
@@ -33,18 +31,18 @@ contract Vaults {
     }
 
     function getUserBalance(address _user, IVault _vault) public view returns (uint256 _balance, uint256 _shares) {
-        IVault.UserInfo memory _userInfo = _vault.userInfos(_user);
+        (uint256 _depositRound, uint256 _pendingDeposit, , , uint256 _totalShares) = _vault.userInfos(_user);
         uint256 _currentRound = _vault.currentRound();
-        _shares = _userInfo.totalShares;
+        _shares = _totalShares;
 
-        if (_userInfo.pendingDeposit > 0 && _userInfo.depositRound < _currentRound) {
-            uint256 _index = _vault.performanceIndices(_userInfo.depositRound);
-            _shares += _userInfo.pendingDeposit.fdiv(_index, 1e18);
-            _userInfo.pendingDeposit = 0;
+        if (_pendingDeposit > 0 && _depositRound < _currentRound) {
+            uint256 _index = _vault.performanceIndices(_depositRound);
+            _shares += _pendingDeposit.fdiv(_index, 1e18);
+            _depositRound = 0;
         }
 
-        uint256 _currentIndex = _vault.performanceIndices(_currentRound - 1);
-        _balance = _shares.fmul(_currentIndex, 1e18) + _userInfo.pendingDeposit;
+        uint256 _currentIndex = _currentRound > 0 ? _vault.performanceIndices(_currentRound - 1) : 1e18;
+        _balance = _shares.fmul(_currentIndex, 1e18) + _pendingDeposit;
     }
 
     function getUserBalances(address _user, IVault[] memory _vaults) public view returns (uint256[] memory _balances, uint256[] memory _shares) {
