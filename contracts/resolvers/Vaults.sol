@@ -25,13 +25,18 @@ contract Vaults {
         address _user,
         IVault[] memory _vaults,
         ERC20[] memory _tokens
-    ) public view returns (uint256[] memory _vaultBalances, uint256[] memory _vaultShares, uint256[] memory _balances) {
+    ) public view returns (
+        uint256[] memory _vaultBalances,
+        uint256[] memory _vaultShares,
+        uint256[] memory _vaultPendingWithdraws,
+        uint256[] memory _balances
+    ) {
         _balances = getTokenBalances(_user, _tokens);
-        (_vaultBalances, _vaultShares) = getUserBalances(_user, _vaults);
+        (_vaultBalances, _vaultShares, _vaultPendingWithdraws) = getUserBalances(_user, _vaults);
     }
 
-    function getUserBalance(address _user, IVault _vault) public view returns (uint256 _balance, uint256 _shares) {
-        (uint256 _depositRound, uint256 _pendingDeposit, , , uint256 _totalShares) = _vault.userInfos(_user);
+    function getUserBalance(address _user, IVault _vault) public view returns (uint256 _balance, uint256 _shares, uint256 _pendingWithdraws) {
+        (uint256 _depositRound, uint256 _pendingDeposit, , uint256 _withdrawnShares, uint256 _totalShares) = _vault.userInfos(_user);
         uint256 _currentRound = _vault.currentRound();
         _shares = _totalShares;
 
@@ -43,14 +48,20 @@ contract Vaults {
 
         uint256 _currentIndex = _currentRound > 0 ? _vault.performanceIndices(_currentRound - 1) : 1e18;
         _balance = _shares.fmul(_currentIndex, 1e18) + _pendingDeposit;
+        _pendingWithdraws = _withdrawnShares;
     }
 
-    function getUserBalances(address _user, IVault[] memory _vaults) public view returns (uint256[] memory _balances, uint256[] memory _shares) {
+    function getUserBalances(address _user, IVault[] memory _vaults) public view returns (
+        uint256[] memory _balances,
+        uint256[] memory _shares,
+        uint256[] memory _pendingWithdraws
+    ) {
         _balances = new uint256[](_vaults.length);
         _shares = new uint256[](_vaults.length);
+        _pendingWithdraws = new uint256[](_vaults.length);
 
         for (uint256 i = 0; i < _vaults.length; i++) {
-            (_balances[i], _shares[i]) = getUserBalance(_user, _vaults[i]);
+            (_balances[i], _shares[i], _pendingWithdraws[i]) = getUserBalance(_user, _vaults[i]);
         }
     }
 
