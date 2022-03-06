@@ -79,7 +79,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
 
     const CoveredCall = await ethers.getContractFactory("PolynomialCoveredCall");
     const CoveredPut = await ethers.getContractFactory("PolynomialCoveredPut");
-    const ShortVol = await ethers.getContractFactory("PolynomialShortVol");
 
     const ethCoveredCall = await CoveredCall.deploy(
         "FX ETH Covered Call",
@@ -96,17 +95,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
         ethOptionMarket.address,
         ethOptionMarketViewer.address
     );
-
-    const ethShortVol = await ShortVol.deploy(
-        "FX ETH Short Volatility",
-        sETH.address,
-        sUSD.address,
-        ethOptionMarket.address,
-        ethOptionMarketViewer.address,
-        synthetix.address,
-        ethers.utils.formatBytes32String("sETH"),
-        ethers.utils.formatBytes32String("sUSD")
-    )
 
     const btcCoveredCall = await CoveredCall.deploy(
         "FX BTC Covered Call",
@@ -132,10 +120,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx.wait();
     tx = await ethCoveredPut.setUserDepositLimit(MAX_UINT);
     tx.wait();
-    tx = await ethShortVol.setCap(MAX_UINT);
-    tx.wait();
-    tx = await ethShortVol.setUserDepositLimit(MAX_UINT);
-    tx.wait();
 
     tx = await btcCoveredCall.setCap(MAX_UINT);
     tx.wait();
@@ -150,8 +134,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx.wait();
     tx = await ethCoveredPut.setIvLimit(toBN('0.01'));
     tx.wait();
-    tx = await ethShortVol.setIvLimit(toBN('0.02'));
-    tx.wait();
 
     tx = await btcCoveredCall.setIvLimit(toBN('0.01'));
     tx.wait();
@@ -161,8 +143,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx = await ethCoveredCall.setFees(performanceFee, managementFee);
     tx.wait();
     tx = await ethCoveredPut.setFees(performanceFee, managementFee);
-    tx.wait();
-    tx = await ethShortVol.setFees(performanceFee, managementFee);
     tx.wait();
 
     tx = await btcCoveredCall.setFees(performanceFee, managementFee);
@@ -174,8 +154,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx.wait();
     tx = await ethCoveredPut.setKeeper(keeper.address);
     tx.wait();
-    tx = await ethShortVol.setKeeper(keeper.address);
-    tx.wait();
 
     tx = await btcCoveredCall.setKeeper(keeper.address);
     tx.wait();
@@ -185,8 +163,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx = await ethCoveredCall.setFeeReceipient(feeRecepient.address);
     tx.wait();
     tx = await ethCoveredPut.setFeeReceipient(feeRecepient.address);
-    tx.wait();
-    tx = await ethShortVol.setFeeReceipient(feeRecepient.address);
     tx.wait();
 
     tx = await btcCoveredCall.setFeeReceipient(feeRecepient.address);
@@ -216,7 +192,6 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
         ethOptionMarketViewer,
         ethCoveredCall,
         ethCoveredPut,
-        ethShortVol,
         btcOptionMarket,
         btcOptionMarketViewer,
         btcCoveredCall,

@@ -1,6 +1,6 @@
 import hre from 'hardhat';
 import * as constants from "../../constants/constants";
-import { PolynomialCoveredCall, PolynomialCoveredPut, PolynomialShortVol, PolynomialShortVol__factory } from "../../typechain";
+import { PolynomialCoveredCall, PolynomialCoveredPut } from "../../typechain";
 
 const { ethers, network } = hre;
 
@@ -74,21 +74,21 @@ async function deployCoveredPut(asset: String): Promise<PolynomialCoveredPut> {
     return polynomialCoveredPut;
 }
 
-async function deployShortVol(asset: String): Promise<PolynomialShortVol> {
-    let networkName = network.name === "hardhat" ? "optimism" : network.name;
-    let ShortVol = await ethers.getContractFactory("PolynomialShortVol");
-    const polynomialShortVol = await ShortVol.deploy(
-        "FX " + asset + "Short Volatility",
-        constants.TOKEN_ADDR[networkName][asset as string],
-        constants.TOKEN_ADDR[networkName]["SUSD"],
-        constants.LYRA_MARKET[networkName][asset as string],
-        constants.MARKET_VIEWER[networkName][asset as string],
-        constants.SYNTHETIX_ADDR[networkName],
-        constants.SYNTH_KEYS[asset as string],
-        constants.SYNTH_KEYS["SUSD"]
-    );
+// async function deployShortVol(asset: String): Promise<PolynomialShortVol> {
+//     let networkName = network.name === "hardhat" ? "optimism" : network.name;
+//     let ShortVol = await ethers.getContractFactory("PolynomialShortVol");
+//     const polynomialShortVol = await ShortVol.deploy(
+//         "FX " + asset + "Short Volatility",
+//         constants.TOKEN_ADDR[networkName][asset as string],
+//         constants.TOKEN_ADDR[networkName]["SUSD"],
+//         constants.LYRA_MARKET[networkName][asset as string],
+//         constants.MARKET_VIEWER[networkName][asset as string],
+//         constants.SYNTHETIX_ADDR[networkName],
+//         constants.SYNTH_KEYS[asset as string],
+//         constants.SYNTH_KEYS["SUSD"]
+//     );
 
-    await polynomialShortVol.deployed();
+//     await polynomialShortVol.deployed();
 
-    return polynomialShortVol;
-}
+//     return polynomialShortVol;
+// }
