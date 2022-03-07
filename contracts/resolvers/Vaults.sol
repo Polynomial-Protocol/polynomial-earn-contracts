@@ -28,15 +28,21 @@ contract Vaults {
     ) public view returns (
         uint256[] memory _vaultBalances,
         uint256[] memory _vaultShares,
-        uint256[] memory _vaultPendingWithdraws,
+        uint256[] memory _vaultWithdrawsToComplete,
+        uint256[] memory _vaultCancellableWithdraw,
         uint256[] memory _balances
     ) {
         _balances = getTokenBalances(_user, _tokens);
-        (_vaultBalances, _vaultShares, _vaultPendingWithdraws) = getUserBalances(_user, _vaults);
+        (_vaultBalances, _vaultShares, _vaultWithdrawsToComplete, _vaultCancellableWithdraw) = getUserBalances(_user, _vaults);
     }
 
-    function getUserBalance(address _user, IVault _vault) public view returns (uint256 _balance, uint256 _shares, uint256 _pendingWithdraws) {
-        (uint256 _depositRound, uint256 _pendingDeposit, , uint256 _withdrawnShares, uint256 _totalShares) = _vault.userInfos(_user);
+    function getUserBalance(address _user, IVault _vault) public view returns (
+        uint256 _balance,
+        uint256 _shares,
+        uint256 _withdrawToComplete,
+        uint256 _cancellableWithdraw
+    ) {
+        (uint256 _depositRound, uint256 _pendingDeposit, uint256 _withdrawRound, uint256 _withdrawnShares, uint256 _totalShares) = _vault.userInfos(_user);
         uint256 _currentRound = _vault.currentRound();
         _shares = _totalShares;
 
@@ -48,20 +54,23 @@ contract Vaults {
 
         uint256 _currentIndex = _currentRound > 0 ? _vault.performanceIndices(_currentRound - 1) : 1e18;
         _balance = _shares.fmul(_currentIndex, 1e18) + _pendingDeposit;
-        _pendingWithdraws = _withdrawnShares;
+        _withdrawToComplete = _currentRound > _withdrawRound ? _withdrawnShares.fmul(_currentIndex, 1e18) : 0;
+        _cancellableWithdraw = _currentRound == _withdrawRound ? _withdrawnShares.fmul(_currentIndex, 1e18) : 0;
     }
 
     function getUserBalances(address _user, IVault[] memory _vaults) public view returns (
         uint256[] memory _balances,
         uint256[] memory _shares,
-        uint256[] memory _pendingWithdraws
+        uint256[] memory _withdrawToComplete,
+        uint256[] memory _cancellableWithdraw
     ) {
         _balances = new uint256[](_vaults.length);
         _shares = new uint256[](_vaults.length);
-        _pendingWithdraws = new uint256[](_vaults.length);
+        _withdrawToComplete = new uint256[](_vaults.length);
+        _cancellableWithdraw = new uint256[](_vaults.length);
 
         for (uint256 i = 0; i < _vaults.length; i++) {
-            (_balances[i], _shares[i], _pendingWithdraws[i]) = getUserBalance(_user, _vaults[i]);
+            (_balances[i], _shares[i], _withdrawToComplete[i], _cancellableWithdraw[i]) = getUserBalance(_user, _vaults[i]);
         }
     }
 
@@ -75,7 +84,7 @@ contract Vaults {
 
     function getPerformance(uint256 _rounds, IVault _vault) public view returns (uint256[] memory _indices) {
         uint256 _currentRound = _vault.currentRound();
-        _rounds = _rounds > _currentRound ? _currentRound : _rounds;
+        _rounds = _rounds > _currentRound + 1 ? _currentRound + 1 : _rounds;
 
         _indices = new uint256[](_rounds);
 
