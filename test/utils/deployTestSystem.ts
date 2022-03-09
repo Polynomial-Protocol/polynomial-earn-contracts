@@ -77,6 +77,12 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
     tx = await btcOptionMarket.setOptionViewer(btcOptionMarketViewer.address);
     tx.wait();
 
+    tx = await ethOptionMarket.setOptionPricer(optionMarketPricer.address);
+    tx.wait();
+
+    tx = await btcOptionMarket.setOptionPricer(optionMarketPricer.address);
+    tx.wait();
+
     const CoveredCall = await ethers.getContractFactory("PolynomialCoveredCall");
     const CoveredPut = await ethers.getContractFactory("PolynomialCoveredPut");
 
@@ -85,15 +91,13 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
         sETH.address,
         synthetix.address,
         ethOptionMarket.address,
-        ethOptionMarketViewer.address,
         ethers.utils.formatBytes32String("sETH"),
         ethers.utils.formatBytes32String("sUSD")
     );
     const ethCoveredPut = await CoveredPut.deploy(
         "FX ETH Covered Put",
         sUSD.address,
-        ethOptionMarket.address,
-        ethOptionMarketViewer.address
+        ethOptionMarket.address
     );
 
     const btcCoveredCall = await CoveredCall.deploy(
@@ -101,15 +105,13 @@ export async function deployTestSystem(keeper: SignerWithAddress, feeRecepient: 
         sBTC.address,
         synthetix.address,
         btcOptionMarket.address,
-        btcOptionMarketViewer.address,
         ethers.utils.formatBytes32String("sBTC"),
         ethers.utils.formatBytes32String("sUSD")
     );
     const btcCoveredPut = await CoveredPut.deploy(
         "FX BTC Covered Put",
         sUSD.address,
-        btcOptionMarket.address,
-        btcOptionMarketViewer.address
+        btcOptionMarket.address
     );
 
     tx = await ethCoveredCall.setCap(MAX_UINT);

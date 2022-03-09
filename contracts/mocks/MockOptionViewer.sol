@@ -14,7 +14,7 @@ contract MockOptionViewer is IOptionMarketViewer {
     address owner;
     IOptionMarketPricer optionMarketPricer;
     IOptionMarket optionMarket;
-    ILyraGlobals.PricingGlobals pricingGlobals;
+    ILyraGlobals.PricingGlobals public pricingGlobals;
 
     constructor(IOptionMarketPricer _pricer, IOptionMarket _market, ILyraGlobals.PricingGlobals memory _pricingGlobals) {
         owner = msg.sender;
@@ -77,6 +77,10 @@ contract MockOptionViewer is IOptionMarketViewer {
         (uint id, uint strike, uint skew, uint longCall, uint shortCall, uint longPut, uint shortPut, uint boardId) =
             optionMarket.optionListings(listingId);
         return IOptionMarket.OptionListing(id, strike, skew, longCall, shortCall, longPut, shortPut, boardId);
+    }
+
+    function getPricingGlobals() public view returns (ILyraGlobals.PricingGlobals memory) {
+        return pricingGlobals;
     }
 
 }

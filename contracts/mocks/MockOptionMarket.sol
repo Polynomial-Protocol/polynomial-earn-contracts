@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.9;
 
+import { ILiquidityPool } from "../interfaces/lyra/ILiquidityPool.sol";
+import { ILyraGlobals } from "../interfaces/lyra/ILyraGlobals.sol";
 import { IOptionMarket } from "../interfaces/lyra/IOptionMarket.sol";
 import { IOptionMarketViewer } from "../interfaces/lyra/IOptionMarketViewer.sol";
 import { SafeDecimalMath } from "../synthetix/SafeDecimalMath.sol";
 
 import { MockSynth } from "./MockSynth.sol";
 import { MockOptionViewer } from "./MockOptionViewer.sol";
+import { MockOptionMarketPricer } from "./MockOptionMarketPricer.sol";
 import "hardhat/console.sol";
 
 contract MockOptionMarket {
@@ -18,6 +21,7 @@ contract MockOptionMarket {
     MockSynth UNDERLYING;
     MockSynth PREMIUM_ASSET;
     MockOptionViewer OPTION_VIEWER;
+    MockOptionMarketPricer OPTION_PRICER;
     mapping(uint256 => IOptionMarket.OptionBoard) public optionBoards;
     mapping(uint256 => IOptionMarket.OptionListing) public optionListings;
     mapping(uint256 => uint256) premiums;
@@ -58,11 +62,30 @@ contract MockOptionMarket {
         IOptionMarket.TradeType tradeType,
         uint amount
     ) external returns (uint totalCost) {
-        IOptionMarketViewer.TradePremiumView memory premium = OPTION_VIEWER.getPremiumForOpen(_listingId, tradeType, amount);
-        IOptionMarket.OptionListing memory listing = optionListings[_listingId];
+        IOptionMarket.OptionListing storage listing = optionListings[_listingId];
         IOptionMarket.OptionBoard storage board = optionBoards[listing.boardId];
         
-        board.iv = premium.newIv;
+        ILiquidityPool.Liquidity memory liq;
+        bool isBuy = 
+            tradeType == IOptionMarket.TradeType.LONG_CALL ||
+            tradeType == IOptionMarket.TradeType.LONG_PUT;
+        
+        IOptionMarket.Trade memory trade = IOptionMarket.Trade({
+            isBuy: isBuy,
+            amount: amount,
+            vol: board.iv.multiplyDecimal(listing.skew),
+            expiry: board.expiry,
+            liquidity: liq
+        });
+
+        ILyraGlobals.PricingGlobals memory _pricingGlobals = OPTION_VIEWER.getPricingGlobals();
+
+        (uint newIv, uint newSkew) = OPTION_PRICER.ivImpactForTrade(
+            listing, trade, _pricingGlobals, board.iv
+        );
+
+        board.iv = newIv;
+        listing.skew = newSkew;
         
         if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
             totalCost = premiums[_listingId].multiplyDecimal(amount);
@@ -115,6 +138,12 @@ contract MockOptionMarket {
         require(msg.sender == owner);
         
         OPTION_VIEWER = _optionViewer;
+    }
+
+    function setOptionPricer(MockOptionMarketPricer _optionPricer) external {
+        require(msg.sender == owner);
+        
+        OPTION_PRICER = _optionPricer;
     }
     
     function getBoardListings(uint boardId) external view returns (uint[] memory) {

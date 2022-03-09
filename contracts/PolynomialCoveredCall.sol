@@ -44,9 +44,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
     /// @notice Lyra Option Market
     IOptionMarket public immutable LYRA_MARKET;
 
-    /// @notice Lyra Option Market Viewer
-    IOptionMarketViewer public immutable MARKET_VIEWER;
-
     /// @notice Synthetix currency key of the underlying token
     bytes32 public immutable SYNTH_KEY_UNDERLYING;
 
@@ -167,7 +164,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
         ERC20 _underlying,
         ISynthetix _synthetix,
         IOptionMarket _lyraMarket,
-        IOptionMarketViewer _marketViewer,
         bytes32 _underlyingKey,
         bytes32 _premiumKey
     ) Auth(msg.sender, Authority(address(0x0))) {
@@ -175,7 +171,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
         UNDERLYING = _underlying;
         SYNTHETIX = _synthetix;
         LYRA_MARKET = _lyraMarket;
-        MARKET_VIEWER = _marketViewer;
         SYNTH_KEY_UNDERLYING = _underlyingKey;
         SYNTH_KEY_PREMIUM = _premiumKey;
 
@@ -374,13 +369,18 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
 
         IOptionMarket.TradeType tradeType = IOptionMarket.TradeType.SHORT_CALL;
 
-        IOptionMarketViewer.TradePremiumView memory zeroTradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, 0);
-        IOptionMarketViewer.TradePremiumView memory tradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, _amt);
-
-        require(zeroTradePremium.newIv - tradePremium.newIv < ivLimit, "IV_LIMIT_HIT");
+        (,, uint256 initSkew,,,,, uint256 boardId) = LYRA_MARKET.optionListings(currentListingId);
+        (,, uint256 initBaseIv,) = LYRA_MARKET.optionBoards(boardId);
 
         UNDERLYING.safeApprove(address(LYRA_MARKET), _amt);
         uint256 totalCost = LYRA_MARKET.openPosition(currentListingId, tradeType, _amt);
+
+        (,, uint256 finalSkew,,,,,) = LYRA_MARKET.optionListings(currentListingId);
+        (,, uint256 finalBaseIv,) = LYRA_MARKET.optionBoards(boardId);
+
+        uint256 initIv = initBaseIv.fmul(initSkew, 1e18);
+        uint256 finalIv = finalBaseIv.fmul(finalSkew, 1e18);
+        require(initIv - finalIv < ivLimit, "IV_LIMIT_HIT");
         
         uint256 totalCostInUnderlying = SYNTHETIX.exchange(SYNTH_KEY_PREMIUM, totalCost, SYNTH_KEY_UNDERLYING);
 
