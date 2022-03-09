@@ -40,9 +40,6 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     /// @notice Lyra Option Market
     IOptionMarket public immutable LYRA_MARKET;
 
-    /// @notice Lyra Option Market Viewer
-    IOptionMarketViewer public immutable MARKET_VIEWER;
-
     /// -----------------------------------------------------------------------
     /// Storage variables
     /// -----------------------------------------------------------------------
@@ -155,13 +152,11 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     constructor(
         string memory _name,
         ERC20 _collateral,
-        IOptionMarket _lyraMarket,
-        IOptionMarketViewer _marketViewer
+        IOptionMarket _lyraMarket
     ) Auth(msg.sender, Authority(address(0x0))) {
         name = _name;
         COLLATERAL = _collateral;
         LYRA_MARKET = _lyraMarket;
-        MARKET_VIEWER = _marketViewer;
 
         performanceIndices[0] = 1e18;
     }
@@ -355,13 +350,18 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
 
         IOptionMarket.TradeType tradeType = IOptionMarket.TradeType.SHORT_PUT;
 
-        IOptionMarketViewer.TradePremiumView memory zeroTradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, 0);
-        IOptionMarketViewer.TradePremiumView memory tradePremium = MARKET_VIEWER.getPremiumForOpen(currentListingId, tradeType, _amt);
-
-        require(zeroTradePremium.newIv - tradePremium.newIv < ivLimit, "IV_LIMIT_HIT");
+        (,, uint256 initSkew,,,,, uint256 boardId) = LYRA_MARKET.optionListings(currentListingId);
+        (,, uint256 initBaseIv,) = LYRA_MARKET.optionBoards(boardId);
 
         COLLATERAL.safeApprove(address(LYRA_MARKET), collateralAmt);
         uint256 totalCost = LYRA_MARKET.openPosition(currentListingId, tradeType, _amt);
+
+        (,, uint256 finalSkew,,,,,) = LYRA_MARKET.optionListings(currentListingId);
+        (,, uint256 finalBaseIv,) = LYRA_MARKET.optionBoards(boardId);
+
+        uint256 initIv = initBaseIv.fmul(initSkew, 1e18);
+        uint256 finalIv = finalBaseIv.fmul(finalSkew, 1e18);
+        require(initIv - finalIv < ivLimit, "IV_LIMIT_HIT");
 
         premiumCollected += totalCost;
         usedFunds += collateralAmt;
