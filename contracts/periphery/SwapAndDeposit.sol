@@ -70,7 +70,7 @@ contract SwapAndDeposit is Auth, ReentrancyGuard {
         (bool isSuccess, ) = _exchange.call(_data);
         require(isSuccess);
 
-        uint256 postExchangeBal = _from.balanceOf(address(this));
+        uint256 postExchangeBal = _to.balanceOf(address(this));
 
         uint256 depositAmt = postExchangeBal - preExchangeBal;
 
@@ -112,7 +112,84 @@ contract SwapAndDeposit is Auth, ReentrancyGuard {
         (bool isSuccess, ) = _exchange.call(_data);
         require(isSuccess);
 
-        uint256 postExchangeBal = _from.balanceOf(address(this));
+        uint256 postExchangeBal = _to.balanceOf(address(this));
+
+        uint256 depositAmt = postExchangeBal - preExchangeBal;
+
+        require(depositAmt >= _minAmtRecieved);
+
+        if (_vault.COLLATERAL() == _to) {
+            _to.safeApprove(address(_vault), depositAmt);
+            _vault.deposit(msg.sender, depositAmt);
+        } else {
+            uint256 finalAmt;
+            {
+                bytes32 synthKey = SYNTHETIX.synthsByAddress(address(_to));
+                require(synthKey != "");
+
+                finalAmt = SYNTHETIX.exchange(synthKey, depositAmt, SUSD_KEY);
+            }
+            _vault.COLLATERAL().safeApprove(address(_vault), finalAmt);
+            _vault.deposit(msg.sender, finalAmt);
+        }
+    }
+
+    function swapEthAndDepositToCallVault(
+        IPolynomialCoveredCall _vault,
+        address _exchange,
+        ERC20 _to,
+        uint256 _amt,
+        uint256 _minAmtRecieved,
+        bytes memory _data
+    ) external payable nonReentrant {
+        require(approvedExchanges[_exchange]);
+        require(_amt == msg.value);
+
+        uint256 preExchangeBal = _to.balanceOf(address(this));
+
+        (bool isSuccess, ) = _exchange.call{ value: _amt }(_data);
+        require(isSuccess);
+
+        uint256 postExchangeBal = _to.balanceOf(address(this));
+
+        uint256 depositAmt = postExchangeBal - preExchangeBal;
+
+        require(depositAmt >= _minAmtRecieved);
+
+        if (_vault.UNDERLYING() == _to) {
+            _to.safeApprove(address(_vault), depositAmt);
+            _vault.deposit(msg.sender, depositAmt);
+        } else {
+            uint256 finalAmt;
+            {
+                bytes32 synthKey = SYNTHETIX.synthsByAddress(address(_to));
+                require(synthKey != "");
+                bytes32 targetKey = _vault.SYNTH_KEY_UNDERLYING();
+
+                finalAmt = SYNTHETIX.exchange(synthKey, depositAmt, targetKey);
+            }
+            _vault.UNDERLYING().safeApprove(address(_vault), finalAmt);
+            _vault.deposit(msg.sender, finalAmt);
+        }
+    }
+
+    function swapEthAndDepositToPutVault(
+        IPolynomialCoveredPut _vault,
+        address _exchange,
+        ERC20 _to,
+        uint256 _amt,
+        uint256 _minAmtRecieved,
+        bytes memory _data
+    ) external payable nonReentrant {
+        require(approvedExchanges[_exchange]);
+        require(_amt == msg.value);
+
+        uint256 preExchangeBal = _to.balanceOf(address(this));
+
+        (bool isSuccess, ) = _exchange.call{ value: _amt }(_data);
+        require(isSuccess);
+
+        uint256 postExchangeBal = _to.balanceOf(address(this));
 
         uint256 depositAmt = postExchangeBal - preExchangeBal;
 
