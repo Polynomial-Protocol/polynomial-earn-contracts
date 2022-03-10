@@ -36,7 +36,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
     /// -----------------------------------------------------------------------
 
     /// @notice Underlying Asset
-    ERC20 public immutable UNDERLYING;
+    ERC20 public immutable override UNDERLYING;
 
     /// @notice Synthetix
     ISynthetix public immutable SYNTHETIX;
@@ -45,7 +45,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
     IOptionMarket public immutable LYRA_MARKET;
 
     /// @notice Synthetix currency key of the underlying token
-    bytes32 public immutable SYNTH_KEY_UNDERLYING;
+    bytes32 public immutable override SYNTH_KEY_UNDERLYING;
 
     /// @notice Synthetix currency key of the premium token
     bytes32 public immutable SYNTH_KEY_PREMIUM;
