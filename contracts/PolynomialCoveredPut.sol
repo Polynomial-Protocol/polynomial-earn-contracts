@@ -254,7 +254,10 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
 
         if (userInfo.depositRound < currentRound && userInfo.pendingDeposit > 0) {
             /// Convert any pending deposit to shares
-            userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
+            userInfo.totalShares += userInfo.pendingDeposit.fdiv(
+                performanceIndices[userInfo.depositRound],
+                1e18
+            );
             userInfo.pendingDeposit = 0;
         }
 

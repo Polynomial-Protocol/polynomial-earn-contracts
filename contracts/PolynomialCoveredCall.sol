@@ -269,7 +269,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
 
         if (userInfo.depositRound < currentRound && userInfo.pendingDeposit > 0) {
             /// Convert any pending deposit to shares
-            userInfo.totalShares = userInfo.pendingDeposit.fdiv(
+            userInfo.totalShares += userInfo.pendingDeposit.fdiv(
                 performanceIndices[userInfo.depositRound],
                 1e18
             );
