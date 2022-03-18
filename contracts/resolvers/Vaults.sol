@@ -49,7 +49,7 @@ contract Vaults {
         if (_pendingDeposit > 0 && _depositRound < _currentRound) {
             uint256 _index = _vault.performanceIndices(_depositRound);
             _shares += _pendingDeposit.fdiv(_index, 1e18);
-            _depositRound = 0;
+            _pendingDeposit = 0;
         }
 
         uint256 _currentIndex = _currentRound > 0 ? _vault.performanceIndices(_currentRound - 1) : 1e18;

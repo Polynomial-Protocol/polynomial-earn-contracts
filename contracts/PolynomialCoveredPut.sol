@@ -219,7 +219,6 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     /// @param _amt Amount of COLLATERAL tokens to deposit
     function deposit(uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
         if (currentRound == 0) {
             _depositForRoundZero(msg.sender, _amt);
@@ -235,7 +234,6 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     /// @param _amt Amount of COLLATERAL tokens to deposit
     function deposit(address _user, uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
         if (currentRound == 0) {
             _depositForRoundZero(_user, _amt);
@@ -399,24 +397,31 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
         require(block.timestamp > currentExpiry, "ROUND_NOT_OVER");
         /// Close position if round != 0 & Calculate funds & new index value
         if (currentRound > 0) {
-            uint256 preSettleBal = COLLATERAL.balanceOf(address(this));
-            /// Settle all the options sold from last round
-            LYRA_MARKET.settleOptions(currentListingId, IOptionMarket.TradeType.SHORT_PUT);
-            uint256 postSettleBal = COLLATERAL.balanceOf(address(this));
-            uint256 collateralWithdrawn = postSettleBal - preSettleBal;
+            uint256 newIndex = performanceIndices[currentRound - 1];
+            uint256 collateralWithdrawn = usedFunds;
+            uint256 collectedFunds = totalFunds;
             uint256 totalFees;
 
-            /// Calculate and collect fees, if the option expired OTM
-            if (collateralWithdrawn == usedFunds) {
-                uint256 currentRoundManagementFees = collateralWithdrawn.fmul(managementFee, WEEKS_PER_YEAR);
-                uint256 currentRoundPerfomanceFee = premiumCollected.fmul(performanceFee, WEEKS_PER_YEAR);
-                totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
-                COLLATERAL.safeTransfer(feeReciepient, totalFees);
+            if (usedFunds > 0) {
+                uint256 preSettleBal = COLLATERAL.balanceOf(address(this));
+                /// Settle all the options sold from last round
+                LYRA_MARKET.settleOptions(currentListingId, IOptionMarket.TradeType.SHORT_PUT);
+                uint256 postSettleBal = COLLATERAL.balanceOf(address(this));
+                collateralWithdrawn = postSettleBal - preSettleBal;
+
+                /// Calculate and collect fees, if the option expired OTM
+                if (collateralWithdrawn == usedFunds) {
+                    uint256 currentRoundManagementFees = collateralWithdrawn.fmul(managementFee, WEEKS_PER_YEAR);
+                    uint256 currentRoundPerfomanceFee = premiumCollected.fmul(performanceFee, WEEKS_PER_YEAR);
+                    totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
+                    COLLATERAL.safeTransfer(feeReciepient, totalFees);
+                }
+                /// Calculate last round's performance index
+                uint256 unusedFunds = totalFunds - usedFunds;
+                collectedFunds = collateralWithdrawn + premiumCollected + unusedFunds - totalFees;
+                newIndex = collectedFunds.fdiv(totalShares, 1e18);
             }
-            /// Calculate last round's performance index
-            uint256 unusedFunds = totalFunds - usedFunds;
-            uint256 collectedFunds = collateralWithdrawn + premiumCollected + unusedFunds - totalFees;
-            uint256 newIndex = collectedFunds.fdiv(totalShares, 1e18);
+
             performanceIndices[currentRound] = newIndex;
 
             /// Process pending deposits and withdrawals
@@ -500,6 +505,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
 
         UserInfo storage userInfo = userInfos[_user];
         userInfo.totalShares += _amt;
+        require(userInfo.totalShares <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
         totalShares += _amt;
     }
 
@@ -513,11 +519,14 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
 
         UserInfo storage userInfo = userInfos[_user];
         if (userInfo.depositRound > 0 && userInfo.depositRound < currentRound) {
-            userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
+            userInfo.totalShares += userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
             userInfo.pendingDeposit = _amt;
         } else {
             userInfo.pendingDeposit += _amt;
         }
         userInfo.depositRound = currentRound;
+
+        uint256 totalBalance = userInfo.pendingDeposit + userInfo.totalShares.fmul(performanceIndices[currentRound - 1], 1e18);
+        require(totalBalance <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
     }
 }
