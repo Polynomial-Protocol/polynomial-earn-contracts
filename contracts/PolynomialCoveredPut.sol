@@ -219,7 +219,6 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     /// @param _amt Amount of COLLATERAL tokens to deposit
     function deposit(uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
         if (currentRound == 0) {
             _depositForRoundZero(msg.sender, _amt);
@@ -235,7 +234,6 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     /// @param _amt Amount of COLLATERAL tokens to deposit
     function deposit(address _user, uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
         if (currentRound == 0) {
             _depositForRoundZero(_user, _amt);
@@ -500,6 +498,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
 
         UserInfo storage userInfo = userInfos[_user];
         userInfo.totalShares += _amt;
+        require(userInfo.totalShares <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
         totalShares += _amt;
     }
 
@@ -513,11 +512,14 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
 
         UserInfo storage userInfo = userInfos[_user];
         if (userInfo.depositRound > 0 && userInfo.depositRound < currentRound) {
-            userInfo.totalShares = userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
+            userInfo.totalShares += userInfo.pendingDeposit.fdiv(performanceIndices[userInfo.depositRound], 1e18);
             userInfo.pendingDeposit = _amt;
         } else {
             userInfo.pendingDeposit += _amt;
         }
         userInfo.depositRound = currentRound;
+
+        uint256 totalBalance = userInfo.pendingDeposit + userInfo.totalShares.fmul(performanceIndices[currentRound - 1], 1e18);
+        require(totalBalance <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
     }
 }

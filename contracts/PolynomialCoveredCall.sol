@@ -234,7 +234,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
     /// @param _amt Amount of UNDERLYING tokens to deposit
     function deposit(uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
         if (currentRound == 0) {
             _depositForRoundZero(msg.sender, _amt);
@@ -250,7 +249,6 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
     /// @param _amt Amount of UNDERLYING tokens to deposit
     function deposit(address _user, uint256 _amt) external override nonReentrant whenNotPaused {
         require(_amt > 0, "AMT_CANNOT_BE_ZERO");
-        require(_amt <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
 
         if (currentRound == 0) {
             _depositForRoundZero(_user, _amt);
@@ -524,6 +522,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
 
         UserInfo storage userInfo = userInfos[_user];
         userInfo.totalShares += _amt;
+        require(userInfo.totalShares <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
         totalShares += _amt;
     }
 
@@ -538,7 +537,7 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
         UserInfo storage userInfo = userInfos[_user];
         /// Process any pending deposit, if any
         if (userInfo.depositRound > 0 && userInfo.depositRound < currentRound) {
-            userInfo.totalShares = userInfo.pendingDeposit.fdiv(
+            userInfo.totalShares += userInfo.pendingDeposit.fdiv(
                 performanceIndices[userInfo.depositRound],
                 1e18
             );
@@ -547,5 +546,8 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
             userInfo.pendingDeposit += _amt;
         }
         userInfo.depositRound = currentRound;
+
+        uint256 totalBalance = userInfo.pendingDeposit + userInfo.totalShares.fmul(performanceIndices[currentRound - 1], 1e18);
+        require(totalBalance <= userDepositLimit, "USER_DEPOSIT_LIMIT_EXCEEDED");
     }
 }
