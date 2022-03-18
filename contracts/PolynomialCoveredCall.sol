@@ -415,26 +415,34 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
         (, uint256 expiry,,) = LYRA_MARKET.optionBoards(boardId);
         require(expiry >= block.timestamp, "INVALID_LISTING_ID");
         require(block.timestamp > currentExpiry, "ROUND_NOT_OVER");
+
         /// Close position if round != 0 & Calculate funds & new index value
         if (currentRound > 0) {
-            uint256 preSettleBal = UNDERLYING.balanceOf(address(this));
-            /// Settle all the options sold from last round
-            LYRA_MARKET.settleOptions(currentListingId, IOptionMarket.TradeType.SHORT_CALL);
-            uint256 postSettleBal = UNDERLYING.balanceOf(address(this));
-            uint256 collateralWithdrawn = postSettleBal - preSettleBal;
+            uint256 newIndex = performanceIndices[currentRound - 1];
+            uint256 collateralWithdrawn = usedFunds;
+            uint256 collectedFunds = totalFunds;
             uint256 totalFees;
+            
+            if (usedFunds > 0) {
+                uint256 preSettleBal = UNDERLYING.balanceOf(address(this));
+                /// Settle all the options sold from last round
+                LYRA_MARKET.settleOptions(currentListingId, IOptionMarket.TradeType.SHORT_CALL);
+                uint256 postSettleBal = UNDERLYING.balanceOf(address(this));
+                collateralWithdrawn = postSettleBal - preSettleBal;
 
-            /// Calculate and collect fees, if the option expired OTM
-            if (collateralWithdrawn == usedFunds) {
-                uint256 currentRoundManagementFees = collateralWithdrawn.fmul(managementFee, WEEKS_PER_YEAR);
-                uint256 currentRoundPerfomanceFee = premiumCollected.fmul(performanceFee, WEEKS_PER_YEAR);
-                totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
-                UNDERLYING.safeTransfer(feeReciepient, totalFees);
+                /// Calculate and collect fees, if the option expired OTM
+                if (collateralWithdrawn == usedFunds) {
+                    uint256 currentRoundManagementFees = collateralWithdrawn.fmul(managementFee, WEEKS_PER_YEAR);
+                    uint256 currentRoundPerfomanceFee = premiumCollected.fmul(performanceFee, WEEKS_PER_YEAR);
+                    totalFees = currentRoundManagementFees + currentRoundPerfomanceFee;
+                    UNDERLYING.safeTransfer(feeReciepient, totalFees);
+                }
+                /// Calculate last round's performance index
+                uint256 unusedFunds = totalFunds - usedFunds;
+                collectedFunds = collateralWithdrawn + premiumCollected + unusedFunds - totalFees;
+                newIndex = collectedFunds.fdiv(totalShares, 1e18);
             }
-            /// Calculate last round's performance index
-            uint256 unusedFunds = totalFunds - usedFunds;
-            uint256 collectedFunds = collateralWithdrawn + premiumCollected + unusedFunds - totalFees;
-            uint256 newIndex = collectedFunds.fdiv(totalShares, 1e18);
+
             performanceIndices[currentRound] = newIndex;
 
             /// Process pending deposits and withdrawals
