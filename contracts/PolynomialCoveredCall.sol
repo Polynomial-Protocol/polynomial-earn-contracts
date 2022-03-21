@@ -9,6 +9,7 @@ import { SafeTransferLib } from "@rari-capital/solmate/src/utils/SafeTransferLib
 
 import { IPolynomialCoveredCall } from "./interfaces/IPolynomialCoveredCall.sol";
 
+import { ILyraDistributor } from "./interfaces/lyra/ILyraDistributor.sol";
 import { IOptionMarket } from "./interfaces/lyra/IOptionMarket.sol";
 import { IOptionMarketPricer } from "./interfaces/lyra/IOptionMarketPricer.sol";
 import { IOptionMarketViewer } from "./interfaces/lyra/IOptionMarketViewer.sol";
@@ -30,6 +31,12 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
 
     /// @notice Number of weeks in a year (in 8 decimals)
     uint256 private constant WEEKS_PER_YEAR = 52142857143;
+
+    /// @notice An instance of LYRA token
+    ERC20 public constant LYRA_TOKEN = ERC20(0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb);
+
+    /// @notice An instance of LYRA distributor
+    ILyraDistributor public constant LYRA_CLAIMER = ILyraDistributor(0x0BFb21f64E414Ff616aC54853e52679EEDB22Dd2);
 
     /// -----------------------------------------------------------------------
     /// Immutable parameters
@@ -405,6 +412,14 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
     /// @notice Unpause contract
     function unpause() external requiresAuth {
         _unpause();
+    }
+
+    /// @notice Claim LYRA from Lyra Distributor
+    /// @param _receiver Target Address to receive the claimed tokens
+    function claimLyra(address _receiver) external requiresAuth {
+        LYRA_CLAIMER.claim();
+        uint256 received = LYRA_TOKEN.balanceOf(address(this));
+        LYRA_TOKEN.transfer(_receiver, received);
     }
 
     /// @notice Start a new round by providing listing ID for an upcoming option
