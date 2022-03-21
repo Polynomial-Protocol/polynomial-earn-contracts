@@ -156,6 +156,12 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
         uint256 amt
     );
 
+    event CancelDeposit(
+        address indexed user,
+        uint256 indexed depositRound,
+        uint256 amt
+    );
+
     event RequestWithdraw(
         address indexed user,
         uint256 indexed withdrawnRound, uint256 shares
@@ -264,6 +270,23 @@ contract PolynomialCoveredCall is IPolynomialCoveredCall, ReentrancyGuard, Auth,
         }
 
         emit Deposit(_user, currentRound, _amt);
+    }
+
+    /// @notice Cancel a pending deposit
+    /// @param _amt Amount of tokens to cancel from deposit
+    function cancelDeposit(uint256 _amt) external nonReentrant whenNotPaused {
+        UserInfo storage userInfo = userInfos[msg.sender];
+
+        require(
+            userInfo.pendingDeposit >= _amt &&
+            userInfo.depositRound == currentRound,
+            "NO_PENDING_DEPOSIT"
+        );
+
+        userInfo.pendingDeposit -= _amt;
+        pendingDeposits -= _amt;
+
+        emit CancelDeposit(msg.sender, currentRound, _amt);
     }
 
     /// @notice Request withdraw from the vault
