@@ -32,11 +32,10 @@ async function deployCoveredCall(asset: String): Promise<PolynomialCoveredCall> 
     // await hre.run("verify:verify", {
     //     address: txReceipt.contractAddress,
     //     constructorArguments: [
-    //         "FX " + asset + "Covered Call",
+    //         "fx sETH Covered Call",
     //         constants.TOKEN_ADDR[networkName][asset as string],
     //         constants.SYNTHETIX_ADDR[networkName],
     //         constants.LYRA_MARKET[networkName][asset as string],
-    //         constants.MARKET_VIEWER[networkName][asset as string],
     //         constants.SYNTH_KEYS[asset as string],
     //         constants.SYNTH_KEYS["SUSD"]
     //     ],
@@ -62,10 +61,9 @@ async function deployCoveredPut(asset: String): Promise<PolynomialCoveredPut> {
     // await hre.run("verify:verify", {
     //     address: txReceipt.contractAddress,
     //     constructorArguments: [
-    //         "FX " + asset + "Covered Put",
+    //         "fx sETH Put Selling",
     //         constants.TOKEN_ADDR[networkName]["SUSD"],
-    //         constants.LYRA_MARKET[networkName][asset as string],
-    //         constants.MARKET_VIEWER[networkName][asset as string]
+    //         constants.LYRA_MARKET[networkName][asset as string]
     //     ],
     //   });
 

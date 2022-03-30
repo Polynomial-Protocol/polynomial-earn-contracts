@@ -1,11 +1,24 @@
 {
+  "optimistic_kovan": {
     "polynomial": {
-        "seth_covered_call": "0xFa010B20f29479689914991310df46C87ecbE8BA",
-        "seth_covered_put": "0x27044737f633b8B6e6B4853843ec7685e4FCFad0",
-        "resolver": "0xBb70135905792BAb2CB59858a351Cb1f05A9c502"
+      "seth_covered_call": "0xFa010B20f29479689914991310df46C87ecbE8BA",
+      "seth_covered_put": "0x27044737f633b8B6e6B4853843ec7685e4FCFad0",
+      "resolver": "0xBb70135905792BAb2CB59858a351Cb1f05A9c502"
     },
     "lyra": {
-        "susd": "0x84B6b512E8F416981a27d33E210A1886e29791aB",
-        "seth": "0x2818E5083696E6EB78613b40c0f18Eb47bE55701"
+      "susd": "0x84B6b512E8F416981a27d33E210A1886e29791aB",
+      "seth": "0x2818E5083696E6EB78613b40c0f18Eb47bE55701"
     }
+  },
+  "optimism": {
+    "polynomial": {
+      "seth_covered_call": "0x331Cf6E3E59B18a8bc776A0F652aF9E2b42781c5",
+      "seth_covered_put": "0xFa923AA6b4DF5bea456DF37FA044B37F0FDDCdb4",
+      "resolver": "0x684BBb31eb2F7891523fAfc2CC5A0fB0a45C4DC4"
+    },
+    "lyra": {
+      "susd": "0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9",
+      "seth": "0xE405de8F52ba7559f9df3C368500B6E6ae6Cee49"
+    }
+  }
 }

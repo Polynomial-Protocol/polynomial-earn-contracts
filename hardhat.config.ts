@@ -40,6 +40,11 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    optimism: {
+      url: process.env.OPTIMISM_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
     hardhat: {
       // forking: {
       //   url: process.env.OPTIMISM_URL || "",
@@ -56,7 +61,8 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      optimisticKovan: process.env.ETHERSCAN_API_KEY
+      optimisticKovan: process.env.ETHERSCAN_API_KEY,
+      optimisticEthereum: process.env.ETHERSCAN_API_KEY
     }
   },
   mocha: {
