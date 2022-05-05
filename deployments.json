@@ -14,6 +14,8 @@
     "polynomial": {
       "seth_covered_call": "0x331Cf6E3E59B18a8bc776A0F652aF9E2b42781c5",
       "seth_covered_put": "0xFa923AA6b4DF5bea456DF37FA044B37F0FDDCdb4",
+      "sbtc_covered_call": "0xea48dD74BA1Ff41B705ba5Cf993B2D558e12D860",
+      "sbtc_covered_put": "0x23CB080dd0ECCdacbEB0BEb2a769215280B5087D",
       "resolver": "0xe38462409a2d960d9431ac452d5ffa20f4120f51"
     },
     "lyra": {
