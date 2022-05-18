@@ -42,7 +42,7 @@ contract PolynomialCoveredPut is IPolynomialCoveredPut, ReentrancyGuard, Auth, P
     /// -----------------------------------------------------------------------
 
     /// @notice Collateral Asset
-    ERC20 public immutable COLLATERAL;
+    ERC20 public immutable override COLLATERAL;
 
     /// @notice Lyra Option Market
     IOptionMarket public immutable LYRA_MARKET;
